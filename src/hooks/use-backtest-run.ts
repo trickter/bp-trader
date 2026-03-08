@@ -1,12 +1,12 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { api } from "../lib/api";
 import type { BacktestRequest, BacktestResult, BacktestRunAccepted } from "../lib/types";
 
 interface UseBacktestRunOptions {
-  strategyId: string;
-  strategyKind: "template" | "script";
-  request: BacktestRequest;
+  strategyId?: string;
+  strategyKind?: "template" | "script";
+  request?: BacktestRequest;
 }
 
 const EMPTY_RESULT: BacktestResult = {
@@ -14,11 +14,14 @@ const EMPTY_RESULT: BacktestResult = {
   strategyId: "",
   strategyKind: "template",
   strategyName: "",
+  exchangeId: "",
+  marketType: "",
   symbol: "",
   interval: "",
   startTime: 0,
   endTime: 0,
   priceSource: "mark",
+  chartPriceSource: "mark",
   feeBps: 0,
   slippageBps: 0,
   status: "queued",
@@ -31,68 +34,46 @@ const EMPTY_RESULT: BacktestResult = {
   candles: [],
   tradeMarkers: [],
   equityCurve: [],
+  chartWarnings: [],
 };
 
 export function useBacktestRun({ strategyId, strategyKind, request }: UseBacktestRunOptions) {
   const [run, setRun] = useState<BacktestRunAccepted | null>(null);
   const [result, setResult] = useState<BacktestResult>(EMPTY_RESULT);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let active = true;
+  async function runBacktest(override?: UseBacktestRunOptions) {
+    const nextStrategyId = override?.strategyId ?? strategyId;
+    const nextStrategyKind = override?.strategyKind ?? strategyKind;
+    const nextRequest = override?.request ?? request;
 
-    async function load() {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const accepted =
-          strategyKind === "template"
-            ? await api.createTemplateBacktest(strategyId, request)
-            : await api.createScriptBacktest(strategyId, request);
-
-        if (!active) {
-          return;
-        }
-
-        setRun(accepted);
-
-        const payload = await api.getBacktest(accepted.id);
-        if (!active) {
-          return;
-        }
-
-        setResult(payload);
-      } catch (cause: unknown) {
-        if (!active) {
-          return;
-        }
-
-        setError(cause instanceof Error ? cause.message : "Unknown error");
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
+    if (!nextStrategyId || !nextStrategyKind || !nextRequest) {
+      setError("Strategy selection and request parameters are required.");
+      return null;
     }
 
-    void load();
+    setLoading(true);
+    setError(null);
 
-    return () => {
-      active = false;
-    };
-  }, [
-    request.endTime,
-    request.feeBps,
-    request.interval,
-    request.priceSource,
-    request.slippageBps,
-    request.startTime,
-    request.symbol,
-    strategyId,
-    strategyKind,
-  ]);
+    try {
+      const accepted =
+        nextStrategyKind === "template"
+          ? await api.createTemplateBacktest(nextStrategyId, nextRequest)
+          : await api.createScriptBacktest(nextStrategyId, nextRequest);
 
-  return { run, result, loading, error };
+      setRun(accepted);
+
+      const payload = await api.getBacktest(accepted.id);
+      setResult(payload);
+      return payload;
+    } catch (cause: unknown) {
+      setError(cause instanceof Error ? cause.message : "Unknown error");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return { run, result, loading, error, runBacktest, hasResult: Boolean(result.id) };
 }

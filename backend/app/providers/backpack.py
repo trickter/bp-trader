@@ -18,6 +18,7 @@ from ..schemas import (
     PriceSource,
     ProfileSummary,
 )
+from ..backpack import BackpackRequestError
 from .base import (
     AccountSnapshot,
     BackpackRESTClient,
@@ -52,8 +53,12 @@ class BackpackProvider:
         )
 
         account = _unwrap_object(account_payload, context="backpack account")
-        capital_rows = _unwrap_list(capital_payload, context="backpack capital")
-        collateral_rows = _unwrap_list(collateral_payload, context="backpack collateral")
+        capital_rows = self._normalize_capital_rows(capital_payload)
+        collateral_object = _unwrap_object(collateral_payload, context="backpack collateral")
+        collateral_rows = _unwrap_list(
+            _pick(collateral_object, "collateral", "items", "assets", "balances"),
+            context="backpack collateral rows",
+        )
         position_rows = _unwrap_list(positions_payload, context="backpack positions")
 
         assets = self._normalize_assets(
@@ -64,6 +69,7 @@ class BackpackProvider:
         positions = self._normalize_positions(position_rows, price_source)
         summary = self._normalize_summary(
             account=account,
+            collateral=collateral_object,
             collateral_rows=collateral_rows,
             positions=positions,
             price_source=price_source,
@@ -78,15 +84,22 @@ class BackpackProvider:
         fills_payload, funding_payload = await asyncio.gather(
             self.client.get_fills(symbol=symbol, limit=limit),
             self.client.get_funding_history(symbol=symbol, limit=limit),
+            return_exceptions=True,
         )
 
         warnings: list[str] = []
         items: list[NormalizedRecord[AccountEvent]] = []
-        for payload in _unwrap_list(fills_payload, context="backpack fills"):
+        fill_rows = self._unwrap_history_or_empty(fills_payload, context="backpack fills", warnings=warnings)
+        funding_rows = self._unwrap_history_or_empty(
+            funding_payload,
+            context="backpack funding history",
+            warnings=warnings,
+        )
+        for payload in fill_rows:
             event, event_warnings = self._normalize_fill_event(payload)
             items.append(NormalizedRecord(data=event, raw_payload=payload, warnings=event_warnings))
             warnings.extend(event_warnings)
-        for payload in _unwrap_list(funding_payload, context="backpack funding history"):
+        for payload in funding_rows:
             event, event_warnings = self._normalize_funding_event(payload)
             items.append(NormalizedRecord(data=event, raw_payload=payload, warnings=event_warnings))
             warnings.extend(event_warnings)
@@ -103,10 +116,34 @@ class BackpackProvider:
         end_time: int | None = None,
         include_klines: bool = False,
     ) -> MarketPulseSnapshot:
-        market_payload, open_interest_payload, funding_payload = await asyncio.gather(
-            self.client.get_market(symbol),
+        kline_interval = interval or "1m"
+        now_seconds = int(datetime.now(tz=UTC).timestamp())
+        recent_start = max(now_seconds - 3600, 0)
+
+        (
+            ticker_payload,
+            open_interest_payload,
+            funding_payload,
+            mark_klines,
+            index_klines,
+        ) = await asyncio.gather(
+            self.client.get_ticker(symbol),
             self.client.get_open_interest(symbol),
             self.client.get_funding_rates(symbol=symbol),
+            self.fetch_klines(
+                symbol=symbol,
+                interval=kline_interval,
+                start_time=recent_start,
+                end_time=now_seconds,
+                price_source=PriceSource.MARK,
+            ),
+            self.fetch_klines(
+                symbol=symbol,
+                interval=kline_interval,
+                start_time=recent_start,
+                end_time=now_seconds,
+                price_source=PriceSource.INDEX,
+            ),
         )
         klines = None
         if include_klines:
@@ -120,9 +157,11 @@ class BackpackProvider:
                 price_source=price_source,
             )
 
-        market = _unwrap_object(market_payload, context=f"backpack market {symbol}")
-        open_interest = _unwrap_object(open_interest_payload, context=f"backpack open interest {symbol}")
-        funding = _unwrap_object(funding_payload, context=f"backpack funding rate {symbol}")
+        ticker = _pick_latest_object(ticker_payload, context=f"backpack ticker {symbol}")
+        open_interest = _pick_latest_object(open_interest_payload, context=f"backpack open interest {symbol}")
+        funding = _pick_latest_object(funding_payload, context=f"backpack funding rate {symbol}")
+        mark_price = _latest_candle_close(mark_klines, context=f"backpack mark klines {symbol}")
+        index_price = _latest_candle_close(index_klines, context=f"backpack index klines {symbol}")
 
         metrics = [
             NormalizedRecord(
@@ -139,47 +178,34 @@ class BackpackProvider:
                     label="Last price",
                     value=_stringify_number(
                         _require_float(
-                            market,
+                            ticker,
                             "lastPrice",
                             "last_price",
                             "price",
+                            "close",
                             context=f"backpack market {symbol}",
                         ),
                     ),
                     freshness="exchange snapshot",
                     tone="positive",
                 ),
-                raw_payload=market,
+                raw_payload=ticker,
             ),
             NormalizedRecord(
                 data=MarketMetric(
                     label="Mark price",
-                    value=_stringify_number(
-                        _require_float(
-                            market,
-                            "markPrice",
-                            "mark_price",
-                            context=f"backpack market {symbol}",
-                        ),
-                    ),
+                    value=_stringify_number(mark_price),
                     freshness="exchange snapshot",
                 ),
-                raw_payload=market,
+                raw_payload=mark_klines.raw_payload,
             ),
             NormalizedRecord(
                 data=MarketMetric(
                     label="Index price",
-                    value=_stringify_number(
-                        _require_float(
-                            market,
-                            "indexPrice",
-                            "index_price",
-                            context=f"backpack market {symbol}",
-                        ),
-                    ),
+                    value=_stringify_number(index_price),
                     freshness="exchange snapshot",
                 ),
-                raw_payload=market,
+                raw_payload=index_klines.raw_payload,
             ),
             NormalizedRecord(
                 data=MarketMetric(
@@ -200,14 +226,14 @@ class BackpackProvider:
             NormalizedRecord(
                 data=MarketMetric(
                     label="Funding rate",
-                    value=_stringify_number(
+                    value=_format_rate_percent(
                         _require_float(
                             funding,
                             "fundingRate",
                             "funding_rate",
                             "rate",
                             context=f"backpack funding rate {symbol}",
-                        ),
+                        )
                     ),
                     freshness="polled",
                 ),
@@ -219,7 +245,10 @@ class BackpackProvider:
     async def fetch_exchange_accounts(self) -> NormalizedList[ExchangeAccount]:
         account_payload = await self.client.get_account()
         account = _unwrap_object(account_payload, context="backpack account")
-        account_id = _require_string(account, "id", "accountId", "account_id", context="backpack account")
+        account_id = _stringify(
+            _pick(account, "id", "accountId", "account_id"),
+            fallback=f"{self.account_label}:{self.market_type}",
+        )
         status = "healthy" if account else "attention"
         rotation_time = _coerce_timestamp(_pick(account, "updatedAt", "updated_at", "createdAt", "created_at"))
         record = ExchangeAccount(
@@ -268,6 +297,7 @@ class BackpackProvider:
     def _normalize_summary(
         self,
         account: Mapping[str, Any],
+        collateral: Mapping[str, Any],
         collateral_rows: list[Mapping[str, Any]],
         positions: NormalizedList[Position],
         price_source: PriceSource,
@@ -277,20 +307,42 @@ class BackpackProvider:
             ("collateralValue", "collateral_value", "usdValue", "usd_value", "value"),
         )
         if total_equity == 0:
-            total_equity = _require_float(
-                account,
-                "equity",
-                "accountValue",
-                "account_value",
-                context="backpack account",
-            )
+            total_equity = _float_or_none(
+                _pick(
+                    collateral,
+                    "assetsValue",
+                    "assets_value",
+                    "accountValue",
+                    "account_value",
+                    "equity",
+                )
+            ) or _float_or_none(
+                _pick(account, "equity", "accountValue", "account_value")
+            ) or 0.0
         available_margin = _float_or_none(
-            _pick(account, "availableMargin", "available_margin", "availableCollateral", "available_collateral"),
+            _pick(
+                collateral,
+                "availableCollateral",
+                "available_collateral",
+                "availableMargin",
+                "available_margin",
+            ),
         )
         if available_margin is None:
-            available_margin = _sum_values(
-                collateral_rows,
-                ("availableValue", "available_value", "availableUsdValue", "available_usd_value"),
+            available_margin = (
+                _float_or_none(
+                    _pick(
+                        account,
+                        "availableMargin",
+                        "available_margin",
+                        "availableCollateral",
+                        "available_collateral",
+                    )
+                )
+                or _sum_values(
+                    collateral_rows,
+                    ("availableValue", "available_value", "availableUsdValue", "available_usd_value"),
+                )
             )
         unrealized_pnl = sum(item.data.unrealized_pnl for item in positions.items)
         realized_pnl_24h = _floatify(
@@ -298,13 +350,9 @@ class BackpackProvider:
         )
         win_rate = _floatify(_pick(account, "winRate", "win_rate"))
         synced_at = (
-            _require_timestamp(
-                account,
-                "updatedAt",
-                "updated_at",
-                "timestamp",
-                context="backpack account",
-            )
+            _coerce_timestamp(_pick(account, "updatedAt", "updated_at", "timestamp"))
+            or _coerce_timestamp(_pick(collateral, "updatedAt", "updated_at", "timestamp"))
+            or datetime.now(tz=UTC).isoformat().replace("+00:00", "Z")
         )
         risk_level = _infer_risk_level(total_equity=total_equity, margin=available_margin)
         summary = ProfileSummary(
@@ -319,10 +367,35 @@ class BackpackProvider:
         )
         raw_payload = {
             "account": account,
+            "collateralSummary": collateral,
             "collateral": collateral_rows,
             "positions": [item.raw_payload for item in positions.items],
         }
         return NormalizedRecord(data=summary, raw_payload=raw_payload)
+
+    def _normalize_capital_rows(self, capital_payload: Any) -> list[Mapping[str, Any]]:
+        if isinstance(capital_payload, Mapping):
+            rows: list[Mapping[str, Any]] = []
+            for asset, values in capital_payload.items():
+                if not isinstance(values, Mapping):
+                    raise ProviderError("backpack capital payload contained a non-object asset row")
+                rows.append({"asset": asset, **values})
+            return rows
+        return _unwrap_list(capital_payload, context="backpack capital")
+
+    def _unwrap_history_or_empty(
+        self,
+        payload: Any,
+        *,
+        context: str,
+        warnings: list[str],
+    ) -> list[Mapping[str, Any]]:
+        if isinstance(payload, BackpackRequestError) and payload.status_code == 400:
+            warnings.append(f"{context} unavailable for this account; treating as empty history")
+            return []
+        if isinstance(payload, Exception):
+            raise payload
+        return _unwrap_list(payload, context=context)
 
     def _normalize_assets(
         self,
@@ -547,6 +620,8 @@ class BackpackProvider:
             "timestamp",
             "time",
             "t",
+            "start",
+            "end",
             "startTime",
             "start_time",
             context="backpack kline",
@@ -574,6 +649,23 @@ def _unwrap_object(payload: Any, *, context: str = "payload") -> Mapping[str, An
     if isinstance(payload, list):
         return _coerce_single_mapping(payload, context=context)
     raise ProviderError(f"{context} expected an object payload")
+
+
+def _pick_latest_object(payload: Any, *, context: str) -> Mapping[str, Any]:
+    if isinstance(payload, list):
+        return _coerce_single_mapping(payload[:1], context=context)
+    if isinstance(payload, Mapping):
+        nested = payload.get("data")
+        if isinstance(nested, list):
+            return _coerce_single_mapping(nested[:1], context=f"{context}.data")
+    return _unwrap_object(payload, context=context)
+
+
+def _latest_candle_close(payload: NormalizedRecord[KlineResponse], *, context: str) -> float:
+    candles = payload.data.candles
+    if not candles:
+        raise ProviderError(f"{context} expected at least one candle")
+    return candles[-1].close
 
 
 def _unwrap_list(payload: Any, *, context: str = "payload") -> list[Mapping[str, Any]]:
@@ -653,6 +745,10 @@ def _stringify_number(value: Any, fallback: str = "") -> str:
     return _stringify(value, fallback=fallback)
 
 
+def _format_rate_percent(value: float) -> str:
+    return f"{value * 100:+.3f}%"
+
+
 def _normalize_symbol(payload: Mapping[str, Any]) -> str:
     return _stringify(
         _pick(payload, "symbol", "market", "product", "productId", "instrument", "name"),
@@ -723,6 +819,8 @@ def _coerce_timestamp(value: Any) -> str | None:
         else:
             try:
                 parsed = datetime.fromisoformat(stripped.replace("Z", "+00:00"))
+                if parsed.tzinfo is None:
+                    parsed = parsed.replace(tzinfo=UTC)
                 return parsed.astimezone(UTC).isoformat().replace("+00:00", "Z")
             except ValueError:
                 return None

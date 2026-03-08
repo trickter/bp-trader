@@ -14,8 +14,8 @@ from .types import BackpackAuthConfig, BackpackRequestConfig
 
 SIGNED_ENDPOINTS: dict[str, BackpackRequestConfig] = {
     "account": BackpackRequestConfig(instruction="accountQuery", path="/api/v1/account"),
-    "capital": BackpackRequestConfig(instruction="capitalQuery", path="/api/v1/capital"),
-    "collateral": BackpackRequestConfig(instruction="collateralQuery", path="/api/v1/collateral"),
+    "capital": BackpackRequestConfig(instruction="balanceQuery", path="/api/v1/capital"),
+    "collateral": BackpackRequestConfig(instruction="collateralQuery", path="/api/v1/capital/collateral"),
     "positions": BackpackRequestConfig(instruction="positionQuery", path="/api/v1/position"),
     "fills_history": BackpackRequestConfig(instruction="fillHistoryQuery", path="/wapi/v1/history/fills"),
     "funding_history": BackpackRequestConfig(instruction="fundingHistoryQuery", path="/wapi/v1/history/funding"),
@@ -24,6 +24,7 @@ SIGNED_ENDPOINTS: dict[str, BackpackRequestConfig] = {
 PUBLIC_ENDPOINTS: dict[str, str] = {
     "markets": "/api/v1/markets",
     "market": "/api/v1/market",
+    "ticker": "/api/v1/ticker",
     "klines": "/api/v1/klines",
     "open_interest": "/api/v1/openInterest",
     "funding_rates": "/api/v1/fundingRates",
@@ -135,6 +136,12 @@ class BackpackClient:
 
     async def get_market(self, symbol: str) -> Any:
         return await self.get_public(PUBLIC_ENDPOINTS["market"], params={"symbol": symbol})
+
+    async def get_ticker(self, symbol: str, interval: str | None = None) -> Any:
+        return await self.get_public(
+            PUBLIC_ENDPOINTS["ticker"],
+            params={"symbol": symbol, "interval": interval},
+        )
 
     async def get_klines(
         self,

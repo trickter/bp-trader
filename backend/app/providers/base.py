@@ -83,6 +83,13 @@ class BackpackRESTClient(Protocol):
     async def get_market(self, symbol: str) -> Mapping[str, Any] | list[Mapping[str, Any]]:
         ...
 
+    async def get_ticker(
+        self,
+        symbol: str,
+        interval: str | None = None,
+    ) -> Mapping[str, Any] | list[Mapping[str, Any]]:
+        ...
+
     async def get_open_interest(self, symbol: str) -> Mapping[str, Any] | list[Mapping[str, Any]]:
         ...
 

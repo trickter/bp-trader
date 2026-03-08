@@ -91,12 +91,15 @@ class StrategySummary(APIModel):
     id: str
     name: str
     kind: str
+    description: str = ""
     market: str
+    account_id: str = ""
     runtime: str
     status: str
     last_backtest: str
     sharpe: float
     price_source: PriceSource
+    parameters: dict[str, str | float | int | bool] = Field(default_factory=dict)
 
 
 class Candle(APIModel):
@@ -111,10 +114,15 @@ class Candle(APIModel):
 class TradeMarker(APIModel):
     id: str
     timestamp: str
+    candle_timestamp: str = ""
+    action: str = ""
     type: str
     side: str
     price: float
+    qty: float = 0.0
     reason: str
+    related_trade_id: str = ""
+    related_order_id: str = ""
 
 
 class EquityPoint(APIModel):
@@ -127,11 +135,14 @@ class BacktestResult(APIModel):
     strategy_id: str = ""
     strategy_kind: str = "template"
     strategy_name: str
+    exchange_id: str = ""
+    market_type: str = ""
     symbol: str = ""
     interval: str = ""
     start_time: int = 0
     end_time: int = 0
     price_source: PriceSource
+    chart_price_source: PriceSource = PriceSource.MARK
     fee_bps: float = 0
     slippage_bps: float = 0
     status: str = "completed"
@@ -144,6 +155,7 @@ class BacktestResult(APIModel):
     candles: list[Candle]
     trade_markers: list[TradeMarker]
     equity_curve: list[EquityPoint]
+    chart_warnings: list[str] = Field(default_factory=list)
 
 
 class MarketMetric(APIModel):
@@ -195,6 +207,38 @@ class BacktestRequest(APIModel):
     price_source: PriceSource
     fee_bps: float
     slippage_bps: float
+
+
+class StrategyUpsertRequest(APIModel):
+    name: str
+    kind: str
+    description: str = ""
+    market: str
+    account_id: str = ""
+    runtime: str
+    status: str
+    price_source: PriceSource
+    parameters: dict[str, str | float | int | bool] = Field(default_factory=dict)
+
+
+class RiskControls(APIModel):
+    max_open_positions: int
+    max_consecutive_loss: int
+    max_symbol_exposure: float
+    stop_loss_percent: float
+    max_trade_risk: float
+    max_slippage_percent: float
+    max_spread_percent: float
+    volatility_filter_percent: float
+    max_position_notional: float
+    daily_loss_limit: float
+    max_leverage: float
+    allowed_symbols: list[str]
+    trading_window_start: str
+    trading_window_end: str
+    kill_switch_enabled: bool
+    require_mark_price: bool
+    updated_at: str
 
 
 class BacktestRunAccepted(APIModel):

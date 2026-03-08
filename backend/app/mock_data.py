@@ -1,3 +1,5 @@
+import math
+
 from .schemas import (
     AccountEvent,
     BacktestRunAccepted,
@@ -13,6 +15,7 @@ from .schemas import (
     Position,
     PriceSource,
     ProfileSummary,
+    RiskControls,
     StrategySummary,
     TradeMarker,
 )
@@ -146,34 +149,43 @@ STRATEGIES = [
         id="strat_001",
         name="Momentum Burst",
         kind="template",
+        description="Breakout continuation system with ATR volatility filter.",
         market="BTC_USDC_PERP",
+        account_id="acct_001",
         runtime="paper",
         status="healthy",
         last_backtest="2026-03-08T10:12:00Z",
         sharpe=2.14,
         price_source=PriceSource.LAST,
+        parameters={"fast_ema": 21, "slow_ema": 55, "atr_stop": 2.5},
     ),
     StrategySummary(
         id="strat_002",
         name="Funding Carry Stack",
         kind="script",
+        description="Bias-adjusted carry harvesting with inventory clamp.",
         market="SOL_USDC_PERP",
+        account_id="acct_001",
         runtime="paper",
         status="healthy",
         last_backtest="2026-03-08T09:48:00Z",
         sharpe=1.76,
         price_source=PriceSource.MARK,
+        parameters={"carry_threshold": 0.0002, "inventory_cap": 180},
     ),
     StrategySummary(
         id="strat_003",
         name="Mean Reversion Net",
         kind="template",
+        description="Index-referenced fade with session gating.",
         market="ETH_USDC_PERP",
+        account_id="acct_002",
         runtime="disabled",
         status="idle",
         last_backtest="",
         sharpe=0.0,
         price_source=PriceSource.INDEX,
+        parameters={"z_entry": 2.1, "z_exit": 0.7},
     ),
 ]
 
@@ -192,11 +204,14 @@ BACKTEST_RESULT = BacktestResult(
     strategy_id="strat_001",
     strategy_kind="template",
     strategy_name="BTC Momentum Burst",
+    exchange_id="backpack",
+    market_type="perp",
     symbol="BTC_USDC_PERP",
     interval="1d",
     start_time=1740787200,
     end_time=1741305600,
     price_source=PriceSource.LAST,
+    chart_price_source=PriceSource.LAST,
     fee_bps=2.0,
     slippage_bps=4.0,
     status="completed",
@@ -211,34 +226,54 @@ BACKTEST_RESULT = BacktestResult(
         TradeMarker(
             id="tm_001",
             timestamp="2026-03-01T06:00:00Z",
+            candle_timestamp="2026-03-01T00:00:00Z",
+            action="open",
             type="open",
             side="long",
             price=60320,
+            qty=0.25,
             reason="Breakout above prior day high",
+            related_trade_id="trade_001",
+            related_order_id="order_001",
         ),
         TradeMarker(
             id="tm_002",
             timestamp="2026-03-03T12:00:00Z",
+            candle_timestamp="2026-03-03T00:00:00Z",
+            action="close",
             type="close",
             side="long",
             price=61720,
+            qty=0.25,
             reason="Trailing stop tightened after expansion",
+            related_trade_id="trade_002",
+            related_order_id="order_002",
         ),
         TradeMarker(
             id="tm_003",
             timestamp="2026-03-04T07:00:00Z",
+            candle_timestamp="2026-03-04T00:00:00Z",
+            action="open",
             type="open",
             side="long",
             price=61250,
+            qty=0.25,
             reason="Momentum reset confirmed on 1h bar",
+            related_trade_id="trade_003",
+            related_order_id="order_003",
         ),
         TradeMarker(
             id="tm_004",
             timestamp="2026-03-06T16:00:00Z",
+            candle_timestamp="2026-03-06T00:00:00Z",
+            action="close",
             type="close",
             side="long",
             price=62940,
+            qty=0.25,
             reason="Target reached with funding filter intact",
+            related_trade_id="trade_004",
+            related_order_id="order_004",
         ),
     ],
     equity_curve=[
@@ -250,30 +285,8 @@ BACKTEST_RESULT = BacktestResult(
         EquityPoint(timestamp="2026-03-06T00:00:00Z", equity=123.0),
         EquityPoint(timestamp="2026-03-07T00:00:00Z", equity=128.4),
     ],
+    chart_warnings=[],
 )
-
-
-def build_backtest_result(
-    *,
-    backtest_id: str,
-    strategy_id: str,
-    strategy_kind: str,
-    request,
-) -> BacktestResult:
-    return BACKTEST_RESULT.model_copy(
-        update={
-            "id": backtest_id,
-            "strategy_id": strategy_id,
-            "strategy_kind": strategy_kind,
-            "symbol": request.symbol,
-            "interval": request.interval,
-            "start_time": request.start_time,
-            "end_time": request.end_time,
-            "price_source": request.price_source,
-            "fee_bps": request.fee_bps,
-            "slippage_bps": request.slippage_bps,
-        }
-    )
 
 
 def build_backtest_acceptance(
@@ -323,6 +336,34 @@ EXCHANGE_ACCOUNTS = [
     ),
 ]
 
+MARKET_SYMBOLS = [
+    "BTC_USDC_PERP",
+    "ETH_USDC_PERP",
+    "SOL_USDC_PERP",
+    "DOGE_USDC_PERP",
+    "BNB_USDC_PERP",
+]
+
+RISK_CONTROLS = RiskControls(
+    max_open_positions=3,
+    max_consecutive_loss=3,
+    max_symbol_exposure=150,
+    stop_loss_percent=10,
+    max_trade_risk=10,
+    max_slippage_percent=0.4,
+    max_spread_percent=0.3,
+    volatility_filter_percent=8,
+    max_position_notional=300,
+    daily_loss_limit=15,
+    max_leverage=3,
+    allowed_symbols=MARKET_SYMBOLS,
+    trading_window_start="00:00",
+    trading_window_end="23:59",
+    kill_switch_enabled=False,
+    require_mark_price=True,
+    updated_at="2026-03-08T11:40:00Z",
+)
+
 ALERTS = [
     AlertEvent(
         id="alert_001",
@@ -346,3 +387,109 @@ ALERTS = [
         occurred_at="2026-03-08T10:40:00Z",
     ),
 ]
+
+
+def _generate_candles(*, symbol: str, seed: int, request) -> list[Candle]:
+    symbol_base = {
+        "BTC_USDC_PERP": 62000.0,
+        "ETH_USDC_PERP": 3200.0,
+        "SOL_USDC_PERP": 170.0,
+        "DOGE_USDC_PERP": 0.21,
+        "BNB_USDC_PERP": 590.0,
+    }.get(symbol, 100.0)
+    price_source = str(request.price_source)
+    price_bias = {
+        PriceSource.LAST: 1.0,
+        PriceSource.MARK: 0.998,
+        PriceSource.INDEX: 0.996,
+        "last": 1.0,
+        "mark": 0.998,
+        "index": 0.996,
+    }[price_source]
+    base = symbol_base * price_bias * (1 + ((seed % 7) - 3) * 0.012)
+    amplitude = max(base * 0.012, 0.015)
+    candles: list[Candle] = []
+    previous_close = base
+
+    for index, template in enumerate(CANDLES):
+        drift = math.sin((seed % 11) + index * 0.72) * amplitude
+        impulse = math.cos((seed % 17) + index * 0.41) * amplitude * 0.46
+        open_price = previous_close
+        close_price = max(0.0001, open_price + drift + impulse)
+        high = max(open_price, close_price) + abs(amplitude * 0.45 * math.cos(index + seed))
+        low = min(open_price, close_price) - abs(amplitude * 0.35 * math.sin(index + seed / 3))
+        volume = template.volume + (seed % 200) + index * 35
+        candles.append(
+            Candle(
+                timestamp=template.timestamp,
+                open=round(open_price, 4),
+                high=round(high, 4),
+                low=round(max(0.0001, low), 4),
+                close=round(close_price, 4),
+                volume=round(volume, 2),
+            )
+        )
+        previous_close = close_price
+
+    return candles
+
+
+def _generate_trade_markers(
+    *,
+    strategy_id: str,
+    strategy_kind: str,
+    candles: list[Candle],
+    seed: int,
+) -> list[TradeMarker]:
+    if len(candles) < 4:
+        return []
+
+    side = "short" if strategy_kind == "script" or seed % 2 else "long"
+    return [
+        TradeMarker(
+            id=f"{strategy_id}-open-1",
+            timestamp=candles[1].timestamp,
+            type="open",
+            side=side,
+            price=candles[1].close,
+            reason="Signal confirmed after volatility filter",
+        ),
+        TradeMarker(
+            id=f"{strategy_id}-close-1",
+            timestamp=candles[3].timestamp,
+            type="close",
+            side=side,
+            price=candles[3].close,
+            reason="Exit on momentum fade and risk budget reclaim",
+        ),
+        TradeMarker(
+            id=f"{strategy_id}-open-2",
+            timestamp=candles[4].timestamp,
+            type="open",
+            side=side,
+            price=candles[4].open,
+            reason="Re-entry after regime reset",
+        ),
+        TradeMarker(
+            id=f"{strategy_id}-close-2",
+            timestamp=candles[-1].timestamp,
+            type="close",
+            side=side,
+            price=candles[-1].close,
+            reason="Flat by session close",
+        ),
+    ]
+
+
+def _generate_equity_curve(*, candles: list[Candle], seed: int) -> list[EquityPoint]:
+    equity = 100.0
+    points: list[EquityPoint] = []
+    divisor = max(abs(candles[0].open), 1.0)
+
+    for index, candle in enumerate(candles):
+        step_return = ((candle.close - candle.open) / divisor) * (35 + (seed % 13))
+        step_return += math.sin(seed + index) * 0.35
+        equity = round(equity + step_return, 2)
+        points.append(EquityPoint(timestamp=candle.timestamp, equity=equity))
+
+    return points

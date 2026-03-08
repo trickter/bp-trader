@@ -57,21 +57,29 @@ export interface StrategySummary {
   id: string;
   name: string;
   kind: "template" | "script";
+  description: string;
   market: string;
+  accountId: string;
   runtime: "disabled" | "paper" | "live-ready";
   status: "healthy" | "idle" | "paused";
   lastBacktest: string;
   sharpe: number;
   priceSource: PriceSource;
+  parameters: Record<string, string | number | boolean>;
 }
 
 export interface TradeMarker {
   id: string;
   timestamp: string;
-  type: "open" | "close";
+  candleTimestamp: string;
+  action: "open" | "add" | "reduce" | "close" | "stop" | "take_profit";
+  type: "open" | "add" | "reduce" | "close" | "stop" | "take_profit";
   side: "long" | "short";
   price: number;
+  qty: number;
   reason: string;
+  relatedTradeId: string;
+  relatedOrderId: string;
 }
 
 export interface Candle {
@@ -88,11 +96,14 @@ export interface BacktestResult {
   strategyId: string;
   strategyKind: "template" | "script";
   strategyName: string;
+  exchangeId: string;
+  marketType: string;
   symbol: string;
   interval: string;
   startTime: number;
   endTime: number;
   priceSource: PriceSource;
+  chartPriceSource: PriceSource;
   feeBps: number;
   slippageBps: number;
   status: "queued" | "running" | "completed" | "failed";
@@ -105,6 +116,7 @@ export interface BacktestResult {
   candles: Candle[];
   tradeMarkers: TradeMarker[];
   equityCurve: Array<{ timestamp: string; equity: number }>;
+  chartWarnings: string[];
 }
 
 export interface BacktestRequest {
@@ -150,6 +162,38 @@ export interface ExchangeAccount {
   marketType: string;
   lastCredentialRotation: string;
   status: "healthy" | "attention";
+}
+
+export interface StrategyUpsertRequest {
+  name: string;
+  kind: "template" | "script";
+  description: string;
+  market: string;
+  accountId: string;
+  runtime: "disabled" | "paper" | "live-ready";
+  status: "healthy" | "idle" | "paused";
+  priceSource: PriceSource;
+  parameters: Record<string, string | number | boolean>;
+}
+
+export interface RiskControls {
+  maxOpenPositions: number;
+  maxConsecutiveLoss: number;
+  maxSymbolExposure: number;
+  stopLossPercent: number;
+  maxTradeRisk: number;
+  maxSlippagePercent: number;
+  maxSpreadPercent: number;
+  volatilityFilterPercent: number;
+  maxPositionNotional: number;
+  dailyLossLimit: number;
+  maxLeverage: number;
+  allowedSymbols: string[];
+  tradingWindowStart: string;
+  tradingWindowEnd: string;
+  killSwitchEnabled: boolean;
+  requireMarkPrice: boolean;
+  updatedAt: string;
 }
 
 export interface AgentCapability {

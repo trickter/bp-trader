@@ -10,7 +10,7 @@ export function StrategiesPage() {
   const strategies = useDashboardData(api.strategies, []);
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1.5fr_0.9fr]">
+    <div className="grid gap-6">
       <Card>
         <SectionTitle
           eyebrow="Strategy stack"

@@ -11,7 +11,9 @@ import type {
   MarketMetric,
   Position,
   ProfileSummary,
+  RiskControls,
   StrategySummary,
+  StrategyUpsertRequest,
 } from "./types";
 import { clearAdminToken, getAdminToken, notifyInvalidAdminToken } from "./admin-token";
 
@@ -38,6 +40,13 @@ async function getJson<T>(path: string): Promise<T> {
 async function postJson<T>(path: string, body: unknown): Promise<T> {
   return requestJson<T>(path, {
     method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+async function putJson<T>(path: string, body: unknown): Promise<T> {
+  return requestJson<T>(path, {
+    method: "PUT",
     body: JSON.stringify(body),
   });
 }
@@ -92,13 +101,20 @@ export const api = {
   profilePositions: () => getJson<Position[]>("/api/profile/positions"),
   accountEvents: () => getJson<AccountEvent[]>("/api/profile/account-events"),
   strategies: () => getJson<StrategySummary[]>("/api/strategies"),
+  createStrategy: (request: StrategyUpsertRequest) => postJson<StrategySummary>("/api/strategies", request),
+  updateStrategy: (strategyId: string, request: StrategyUpsertRequest) =>
+    putJson<StrategySummary>(`/api/strategies/${strategyId}`, request),
   createTemplateBacktest: (templateId: string, request: BacktestRequest) =>
     postJson<BacktestRunAccepted>(`/api/strategies/templates/${templateId}/backtests`, request),
   createScriptBacktest: (strategyId: string, request: BacktestRequest) =>
     postJson<BacktestRunAccepted>(`/api/strategies/scripts/${strategyId}/backtests`, request),
   getBacktest: (backtestId: string) => getJson<BacktestResult>(`/api/backtests/${backtestId}`),
-  marketPulse: () => getJson<MarketMetric[]>("/api/markets/pulse"),
+  marketPulse: (symbol?: string) =>
+    getJson<MarketMetric[]>(symbol ? `/api/markets/pulse/${encodeURIComponent(symbol)}` : "/api/markets/pulse"),
+  marketSymbols: () => getJson<string[]>("/api/markets/symbols"),
   alerts: () => getJson<AlertEvent[]>("/api/alerts"),
+  riskControls: () => getJson<RiskControls>("/api/risk-controls"),
+  updateRiskControls: (request: RiskControls) => putJson<RiskControls>("/api/risk-controls", request),
   exchangeAccounts: () => getJson<ExchangeAccount[]>("/api/settings/accounts"),
   agentCapabilities: () => getJson<AgentCapability[]>("/api/agent/capabilities"),
   agentContext: () => getJson<AgentContext>("/api/agent/context"),
