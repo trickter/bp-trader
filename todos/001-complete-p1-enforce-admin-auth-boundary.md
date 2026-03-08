@@ -1,5 +1,5 @@
 ---
-status: pending
+status: complete
 priority: p1
 issue_id: "001"
 tags: [code-review, security, architecture, frontend, backend, auth]
@@ -74,6 +74,12 @@ The project is documented as an admin-only console, but neither the React app no
 
 ## Recommended Action
 
+Implement the smallest enforceable admin boundary now:
+- protect every `/api/*` route with a shared FastAPI dependency that validates `X-Admin-Token` against `ADMIN_API_TOKEN`
+- keep `/healthz` public so container and local health checks still work without privileged credentials
+- block the React admin shell until a token is entered, store it only in `sessionStorage`, and attach it to each API request
+- document the header contract and add focused backend tests for missing, invalid, and valid tokens
+
 ## Technical Details
 
 **Affected files:**
@@ -98,11 +104,11 @@ The project is documented as an admin-only console, but neither the React app no
 
 ## Acceptance Criteria
 
-- [ ] Every admin API route requires authenticated admin access on the server
-- [ ] Frontend admin routes are gated before rendering privileged screens
-- [ ] Unauthorized requests return explicit 401/403 responses
-- [ ] The auth mechanism is documented in `README.md`
-- [ ] `BACKPACK_MODE=live` no longer exposes account data without auth
+- [x] Every admin API route requires authenticated admin access on the server
+- [x] Frontend admin routes are gated before rendering privileged screens
+- [x] Unauthorized requests return explicit 401/403 responses
+- [x] The auth mechanism is documented in `README.md`
+- [x] `BACKPACK_MODE=live` no longer exposes account data without auth
 
 ## Work Log
 
@@ -119,6 +125,22 @@ The project is documented as an admin-only console, but neither the React app no
 **Learnings:**
 - The repository states an admin-only access model, but the implementation currently has no enforcement layer
 - This is the highest-risk issue because it invalidates the project’s basic trust boundary
+
+### 2026-03-08 - Header Token Gate Implemented
+
+**By:** Codex
+
+**Actions:**
+- Added a shared FastAPI auth dependency in `/app/ai-code/worktrees/trader-auth/backend/app/auth.py`
+- Moved `/api/*` handlers onto a router with global auth dependency in `/app/ai-code/worktrees/trader-auth/backend/app/main.py`
+- Added a frontend session token store and invalid-token reset flow in `/app/ai-code/worktrees/trader-auth/src/lib/admin-token.ts` and `/app/ai-code/worktrees/trader-auth/src/lib/api.ts`
+- Added an admin login gate and logout path in `/app/ai-code/worktrees/trader-auth/src/App.tsx`, `/app/ai-code/worktrees/trader-auth/src/components/admin-token-gate.tsx`, and `/app/ai-code/worktrees/trader-auth/src/components/dashboard-layout.tsx`
+- Documented the `X-Admin-Token` contract in `/app/ai-code/worktrees/trader-auth/README.md`
+- Added focused backend coverage in `/app/ai-code/worktrees/trader-auth/backend/tests/test_admin_auth.py`
+
+**Learnings:**
+- A router-level FastAPI dependency is enough to enforce the boundary consistently without touching each handler body
+- Session-scoped storage keeps the frontend gate minimal while still preventing the admin shell from rendering by default
 
 ## Notes
 

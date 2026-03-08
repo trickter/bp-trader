@@ -9,13 +9,26 @@ import type {
   ProfileSummary,
   StrategySummary,
 } from "./types";
+import { clearAdminToken, getAdminToken, notifyInvalidAdminToken } from "./admin-token";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 async function getJson<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`);
+  const adminToken = getAdminToken();
+  const headers = new Headers();
+
+  if (adminToken) {
+    headers.set("X-Admin-Token", adminToken);
+  }
+
+  const response = await fetch(`${API_BASE}${path}`, { headers });
 
   if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      clearAdminToken();
+      notifyInvalidAdminToken();
+    }
+
     throw new Error(`Request failed: ${response.status}`);
   }
 

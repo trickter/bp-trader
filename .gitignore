@@ -6,6 +6,7 @@ dist
 __pycache__
 *.pyc
 .venv
+.venv-review
 .pytest_cache
 .env
 .env.local

@@ -18,6 +18,7 @@ The backend is prepared for two data modes:
 
 When `live` is enabled, set:
 
+- `ADMIN_API_TOKEN`
 - `BACKPACK_API_BASE_URL`
 - `BACKPACK_API_KEY`
 - `BACKPACK_PRIVATE_KEY`
@@ -54,6 +55,8 @@ When `live` is enabled, set:
 
 ## API Surface
 
+All `/api/*` routes require an `X-Admin-Token` header that matches `ADMIN_API_TOKEN`. Missing tokens return `401`; invalid tokens return `403`. `/healthz` stays public.
+
 - `GET /api/profile/summary`
 - `GET /api/profile/assets`
 - `GET /api/profile/positions`
@@ -83,6 +86,12 @@ python3 -m venv .venv
 PIP_INDEX_URL=https://pypi.org/simple pip install -r backend/requirements.txt
 uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+Frontend admin access:
+
+- The React shell will not render until an admin token is entered.
+- The token is stored in `sessionStorage` for the current browser session only.
+- The frontend attaches the token as `X-Admin-Token` on every backend API request.
 
 To switch from mock data to Backpack live mode:
 

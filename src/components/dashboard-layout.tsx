@@ -13,7 +13,11 @@ const navItems = [
   { to: "/settings", label: "Settings" },
 ];
 
-export function DashboardLayout() {
+type DashboardLayoutProps = {
+  onLogout: () => void;
+};
+
+export function DashboardLayout({ onLogout }: DashboardLayoutProps) {
   return (
     <div className="min-h-screen bg-[#020817] text-white">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_24%),radial-gradient(circle_at_top_right,rgba(14,165,233,0.12),transparent_22%),radial-gradient(circle_at_bottom,rgba(14,165,233,0.1),transparent_28%)]" />
@@ -59,6 +63,13 @@ export function DashboardLayout() {
               </p>
             </div>
             <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={onLogout}
+                className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.26em] text-slate-200 transition hover:bg-white/10"
+              >
+                Logout
+              </button>
               <div className="rounded-full border border-emerald-400/20 bg-emerald-400/8 px-4 py-2 text-xs uppercase tracking-[0.26em] text-emerald-200">
                 Live feed staged
               </div>

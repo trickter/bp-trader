@@ -3,10 +3,11 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from .backpack import BackpackAuthConfig, BackpackAuthError, BackpackClient, BackpackRequestError
+from .auth import require_admin_api_token
 from .config import settings
 from .mock_data import (
     ACCOUNT_EVENTS,
@@ -69,6 +70,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+api_router = APIRouter(prefix="/api", dependencies=[Depends(require_admin_api_token)])
+
 
 @app.get("/healthz")
 def healthcheck():
@@ -80,7 +83,7 @@ def healthcheck():
     }
 
 
-@app.get("/api/profile/summary")
+@api_router.get("/profile/summary")
 async def get_profile_summary(request: Request):
     if settings.backpack_mode == "live":
         snapshot = await _provider_fetch(
@@ -93,7 +96,7 @@ async def get_profile_summary(request: Request):
     return PROFILE_SUMMARY.model_dump(by_alias=True)
 
 
-@app.get("/api/profile/assets")
+@api_router.get("/profile/assets")
 async def get_profile_assets(request: Request):
     if settings.backpack_mode == "live":
         snapshot = await _provider_fetch(
@@ -106,7 +109,7 @@ async def get_profile_assets(request: Request):
     return [item.model_dump(by_alias=True) for item in ASSET_BALANCES]
 
 
-@app.get("/api/profile/positions")
+@api_router.get("/profile/positions")
 async def get_profile_positions(request: Request):
     if settings.backpack_mode == "live":
         snapshot = await _provider_fetch(
@@ -119,7 +122,7 @@ async def get_profile_positions(request: Request):
     return [item.model_dump(by_alias=True) for item in POSITIONS]
 
 
-@app.get("/api/profile/account-events")
+@api_router.get("/profile/account-events")
 async def get_account_events(request: Request):
     if settings.backpack_mode == "live":
         events = await _provider_fetch(
@@ -133,12 +136,12 @@ async def get_account_events(request: Request):
     return [item.model_dump(by_alias=True) for item in ACCOUNT_EVENTS]
 
 
-@app.get("/api/strategies")
+@api_router.get("/strategies")
 def get_strategies():
     return [item.model_dump(by_alias=True) for item in STRATEGIES]
 
 
-@app.post("/api/strategies/templates/{template_id}/backtests")
+@api_router.post("/strategies/templates/{template_id}/backtests")
 def create_template_backtest(template_id: str, request: BacktestRequest):
     payload = BACKTEST_RESULT.model_copy(
         update={
@@ -149,7 +152,7 @@ def create_template_backtest(template_id: str, request: BacktestRequest):
     return payload.model_dump(by_alias=True)
 
 
-@app.post("/api/strategies/scripts/{strategy_id}/backtests")
+@api_router.post("/strategies/scripts/{strategy_id}/backtests")
 def create_script_backtest(strategy_id: str, request: BacktestRequest):
     payload = BACKTEST_RESULT.model_copy(
         update={
@@ -160,13 +163,13 @@ def create_script_backtest(strategy_id: str, request: BacktestRequest):
     return payload.model_dump(by_alias=True)
 
 
-@app.get("/api/backtests/{backtest_id}")
+@api_router.get("/backtests/{backtest_id}")
 def get_backtest(backtest_id: str):
     payload = BACKTEST_RESULT.model_copy(update={"id": backtest_id})
     return payload.model_dump(by_alias=True)
 
 
-@app.get("/api/markets/pulse")
+@api_router.get("/markets/pulse")
 async def get_market_pulse(request: Request):
     if settings.backpack_mode == "live":
         market_pulse = await _provider_fetch(
@@ -183,7 +186,7 @@ async def get_market_pulse(request: Request):
     return [item.model_dump(by_alias=True) for item in MARKET_PULSE]
 
 
-@app.get("/api/markets/{symbol}/klines")
+@api_router.get("/markets/{symbol}/klines")
 async def get_klines(
     request: Request,
     symbol: str,
@@ -216,13 +219,13 @@ async def get_klines(
     return payload.model_dump(by_alias=True)
 
 
-@app.get("/api/alerts")
+@api_router.get("/alerts")
 def get_alerts():
     return [item.model_dump(by_alias=True) for item in ALERTS]
 
 
-@app.get("/api/settings/accounts")
-@app.get("/api/settings/exchange-accounts")
+@api_router.get("/settings/accounts")
+@api_router.get("/settings/exchange-accounts")
 async def get_exchange_accounts(request: Request):
     if settings.backpack_mode == "live":
         accounts = await _provider_fetch(request, lambda provider: provider.fetch_exchange_accounts())
@@ -277,3 +280,6 @@ def _provider_error_detail(*, code: str, message: str, retryable: bool) -> dict[
         "provider": "backpack",
         "retryable": retryable,
     }
+
+
+app.include_router(api_router)
