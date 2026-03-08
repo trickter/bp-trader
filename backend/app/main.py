@@ -235,19 +235,45 @@ async def _provider_fetch(request: Request, callback):
     if provider is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Backpack live provider is not initialized.",
+            detail=_provider_error_detail(
+                code="provider_not_initialized",
+                message="Backpack live provider is not initialized.",
+                retryable=True,
+            ),
         )
     try:
         return await callback(provider)
     except BackpackAuthError as exc:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=_provider_error_detail(
+                code="provider_auth_error",
+                message=str(exc),
+                retryable=False,
+            ),
+        ) from exc
     except BackpackRequestError as exc:
         raise HTTPException(
             status_code=exc.status_code or status.HTTP_502_BAD_GATEWAY,
-            detail={"message": str(exc), "payload": exc.payload},
+            detail=exc.to_response_detail(),
         ) from exc
     except ProviderError as exc:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=_provider_error_detail(
+                code="provider_response_invalid",
+                message=str(exc),
+                retryable=False,
+            ),
+        ) from exc
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
+
+def _provider_error_detail(*, code: str, message: str, retryable: bool) -> dict[str, object]:
+    return {
+        "code": code,
+        "message": message,
+        "provider": "backpack",
+        "retryable": retryable,
+    }
