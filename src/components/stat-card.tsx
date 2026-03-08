@@ -1,0 +1,31 @@
+import { Card } from "./ui/card";
+import { StatusPill } from "./ui/status-pill";
+
+export function StatCard({
+  label,
+  value,
+  helper,
+  badge,
+  tone,
+}: {
+  label: string;
+  value: string;
+  helper: string;
+  badge?: string;
+  tone?: "positive" | "negative" | "neutral";
+}) {
+  return (
+    <Card className="min-h-[142px]">
+      <div className="flex h-full flex-col justify-between gap-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.3em] text-slate-500">{label}</p>
+            <p className="mt-3 text-3xl font-semibold text-white">{value}</p>
+          </div>
+          {badge ? <StatusPill tone={tone}>{badge}</StatusPill> : null}
+        </div>
+        <p className="text-sm text-slate-400">{helper}</p>
+      </div>
+    </Card>
+  );
+}

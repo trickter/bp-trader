@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-trader}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_HOST: ${APP_HOST:-0.0.0.0}
+      APP_PORT: ${APP_PORT:-8000}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/trader}
+      ADMIN_API_TOKEN: ${ADMIN_API_TOKEN:-dev-admin-token}
+      BACKPACK_MODE: ${BACKPACK_MODE:-mock}
+      BACKPACK_API_BASE_URL: ${BACKPACK_API_BASE_URL:-https://api.backpack.exchange}
+      BACKPACK_API_KEY: ${BACKPACK_API_KEY:-}
+      BACKPACK_PRIVATE_KEY: ${BACKPACK_PRIVATE_KEY:-}
+      BACKPACK_WINDOW_MS: ${BACKPACK_WINDOW_MS:-5000}
+      BACKPACK_DEFAULT_SYMBOL: ${BACKPACK_DEFAULT_SYMBOL:-BTC_USDC_PERP}
+      BACKPACK_DEFAULT_INTERVAL: ${BACKPACK_DEFAULT_INTERVAL:-1h}
+      BACKPACK_DEFAULT_PRICE_SOURCE: ${BACKPACK_DEFAULT_PRICE_SOURCE:-mark}
+      BACKPACK_DEFAULT_MARKET_TYPE: ${BACKPACK_DEFAULT_MARKET_TYPE:-perp}
+      BACKPACK_ACCOUNT_LABEL: ${BACKPACK_ACCOUNT_LABEL:-backpack-primary}
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+
+  frontend:
+    build:
+      context: .
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

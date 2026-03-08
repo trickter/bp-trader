@@ -1,0 +1,33 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Syne:wght@500;700;800&display=swap");
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+  font-family: "Manrope", sans-serif;
+  background: #020817;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.08), transparent 22%),
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.09), transparent 18%),
+    linear-gradient(180deg, #020817, #06101f 42%, #030712);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: "Syne", sans-serif;
+  letter-spacing: -0.03em;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+#root {
+  min-height: 100vh;
+}

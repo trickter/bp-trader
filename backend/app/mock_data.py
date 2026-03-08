@@ -1,0 +1,293 @@
+from .schemas import (
+    AccountEvent,
+    AlertEvent,
+    AssetBalance,
+    BacktestResult,
+    Candle,
+    EquityPoint,
+    EventOrigin,
+    EventType,
+    ExchangeAccount,
+    MarketMetric,
+    Position,
+    PriceSource,
+    ProfileSummary,
+    StrategySummary,
+    TradeMarker,
+)
+
+
+PROFILE_SUMMARY = ProfileSummary(
+    total_equity=182430.77,
+    available_margin=120230.34,
+    unrealized_pnl=1982.41,
+    realized_pnl_24h=6240.92,
+    win_rate=71.4,
+    risk_level="disciplined",
+    price_source=PriceSource.MARK,
+    synced_at="2026-03-08T11:35:20Z",
+)
+
+ASSET_BALANCES = [
+    AssetBalance(
+        asset="USDC",
+        available=102340.12,
+        locked=12000.0,
+        collateral_value=114340.12,
+        portfolio_weight=62.7,
+        change_24h=0.0,
+    ),
+    AssetBalance(
+        asset="BTC",
+        available=1.82,
+        locked=0.4,
+        collateral_value=61140.48,
+        portfolio_weight=33.5,
+        change_24h=1.8,
+    ),
+    AssetBalance(
+        asset="SOL",
+        available=94.0,
+        locked=12.0,
+        collateral_value=5110.17,
+        portfolio_weight=2.8,
+        change_24h=-0.9,
+    ),
+]
+
+POSITIONS = [
+    Position(
+        symbol="BTC_USDC_PERP",
+        side="long",
+        quantity=0.95,
+        entry_price=61520,
+        mark_price=62880,
+        liquidation_price=55210,
+        unrealized_pnl=1292,
+        margin_used=13420,
+        opened_at="2026-03-08T01:10:00Z",
+        price_source=PriceSource.MARK,
+        exchange_extra={"native_symbol": "BTC_USDC_PERP", "funding_interval_hours": 8},
+    ),
+    Position(
+        symbol="SOL_USDC_PERP",
+        side="short",
+        quantity=180,
+        entry_price=172.8,
+        mark_price=168.1,
+        liquidation_price=213.5,
+        unrealized_pnl=846,
+        margin_used=4220,
+        opened_at="2026-03-08T03:42:00Z",
+        price_source=PriceSource.MARK,
+        exchange_extra={"native_symbol": "SOL_USDC_PERP", "funding_interval_hours": 8},
+    ),
+    Position(
+        symbol="ETH_USDC_PERP",
+        side="long",
+        quantity=6.5,
+        entry_price=3212,
+        mark_price=3188,
+        liquidation_price=2802,
+        unrealized_pnl=-156,
+        margin_used=2950,
+        opened_at="2026-03-07T23:22:00Z",
+        price_source=PriceSource.MARK,
+        exchange_extra={"native_symbol": "ETH_USDC_PERP", "funding_interval_hours": 8},
+    ),
+]
+
+ACCOUNT_EVENTS = [
+    AccountEvent(
+        id="evt_001",
+        event_type=EventType.TRADE_FILL,
+        origin=EventOrigin.STRATEGY,
+        asset="BTC",
+        amount=0.3,
+        pnl_effect=421.8,
+        position_effect="Opened additional long exposure",
+        occurred_at="2026-03-08T04:20:00Z",
+    ),
+    AccountEvent(
+        id="evt_002",
+        event_type=EventType.FUNDING_SETTLEMENT,
+        origin=EventOrigin.SYSTEM,
+        asset="USDC",
+        amount=42.14,
+        pnl_effect=42.14,
+        position_effect="Funding credit on BTC perp",
+        occurred_at="2026-03-08T04:00:00Z",
+    ),
+    AccountEvent(
+        id="evt_003",
+        event_type=EventType.FEE_CHARGE,
+        origin=EventOrigin.SYSTEM,
+        asset="USDC",
+        amount=-18.77,
+        pnl_effect=-18.77,
+        position_effect="Taker fee on SOL short add",
+        occurred_at="2026-03-08T03:42:05Z",
+    ),
+    AccountEvent(
+        id="evt_004",
+        event_type=EventType.COLLATERAL_CONVERSION,
+        origin=EventOrigin.RISK,
+        asset="BTC",
+        amount=-0.08,
+        pnl_effect=0.0,
+        position_effect="Converted BTC collateral to USDC margin",
+        occurred_at="2026-03-08T02:15:00Z",
+    ),
+]
+
+STRATEGIES = [
+    StrategySummary(
+        id="strat_001",
+        name="Momentum Burst",
+        kind="template",
+        market="BTC_USDC_PERP",
+        runtime="paper",
+        status="healthy",
+        last_backtest="2026-03-08T10:12:00Z",
+        sharpe=2.14,
+        price_source=PriceSource.LAST,
+    ),
+    StrategySummary(
+        id="strat_002",
+        name="Funding Carry Stack",
+        kind="script",
+        market="SOL_USDC_PERP",
+        runtime="paper",
+        status="healthy",
+        last_backtest="2026-03-08T09:48:00Z",
+        sharpe=1.76,
+        price_source=PriceSource.MARK,
+    ),
+    StrategySummary(
+        id="strat_003",
+        name="Mean Reversion Net",
+        kind="template",
+        market="ETH_USDC_PERP",
+        runtime="disabled",
+        status="idle",
+        last_backtest="",
+        sharpe=0.0,
+        price_source=PriceSource.INDEX,
+    ),
+]
+
+CANDLES = [
+    Candle(timestamp="2026-03-01T00:00:00Z", open=60020, high=60640, low=59600, close=60320, volume=1240),
+    Candle(timestamp="2026-03-02T00:00:00Z", open=60320, high=61100, low=60110, close=60980, volume=1580),
+    Candle(timestamp="2026-03-03T00:00:00Z", open=60980, high=61840, low=60720, close=61720, volume=1640),
+    Candle(timestamp="2026-03-04T00:00:00Z", open=61720, high=62010, low=61040, close=61250, volume=1490),
+    Candle(timestamp="2026-03-05T00:00:00Z", open=61250, high=62510, low=61180, close=62180, volume=1770),
+    Candle(timestamp="2026-03-06T00:00:00Z", open=62180, high=63110, low=61970, close=62940, volume=1810),
+    Candle(timestamp="2026-03-07T00:00:00Z", open=62940, high=63300, low=62460, close=62820, volume=1680),
+]
+
+BACKTEST_RESULT = BacktestResult(
+    id="demo",
+    strategy_name="BTC Momentum Burst",
+    price_source=PriceSource.LAST,
+    total_return=28.4,
+    max_drawdown=-7.9,
+    sharpe=2.47,
+    win_rate=68.3,
+    candles=CANDLES,
+    trade_markers=[
+        TradeMarker(
+            id="tm_001",
+            timestamp="2026-03-01T06:00:00Z",
+            type="open",
+            side="long",
+            price=60320,
+            reason="Breakout above prior day high",
+        ),
+        TradeMarker(
+            id="tm_002",
+            timestamp="2026-03-03T12:00:00Z",
+            type="close",
+            side="long",
+            price=61720,
+            reason="Trailing stop tightened after expansion",
+        ),
+        TradeMarker(
+            id="tm_003",
+            timestamp="2026-03-04T07:00:00Z",
+            type="open",
+            side="long",
+            price=61250,
+            reason="Momentum reset confirmed on 1h bar",
+        ),
+        TradeMarker(
+            id="tm_004",
+            timestamp="2026-03-06T16:00:00Z",
+            type="close",
+            side="long",
+            price=62940,
+            reason="Target reached with funding filter intact",
+        ),
+    ],
+    equity_curve=[
+        EquityPoint(timestamp="2026-03-01T00:00:00Z", equity=100.0),
+        EquityPoint(timestamp="2026-03-02T00:00:00Z", equity=103.0),
+        EquityPoint(timestamp="2026-03-03T00:00:00Z", equity=109.0),
+        EquityPoint(timestamp="2026-03-04T00:00:00Z", equity=106.0),
+        EquityPoint(timestamp="2026-03-05T00:00:00Z", equity=114.0),
+        EquityPoint(timestamp="2026-03-06T00:00:00Z", equity=123.0),
+        EquityPoint(timestamp="2026-03-07T00:00:00Z", equity=128.4),
+    ],
+)
+
+MARKET_PULSE = [
+    MarketMetric(label="BTC depth", value="WS realtime", freshness="sub-second", tone="positive"),
+    MarketMetric(label="Open interest", value="1.42B", freshness="60s cadence", tone="neutral"),
+    MarketMetric(label="Funding", value="+0.010%", freshness="polled", tone="neutral"),
+    MarketMetric(label="Mark price", value="$62,880", freshness="realtime", tone="positive"),
+    MarketMetric(label="Index price", value="$62,842", freshness="realtime", tone="neutral"),
+    MarketMetric(label="Latency budget", value="84ms", freshness="observed", tone="positive"),
+]
+
+EXCHANGE_ACCOUNTS = [
+    ExchangeAccount(
+        id="acct_001",
+        exchange="backpack",
+        label="prod-perp-main",
+        market_type="perp",
+        last_credential_rotation="2026-03-04T09:30:00Z",
+        status="healthy",
+    ),
+    ExchangeAccount(
+        id="acct_002",
+        exchange="paper",
+        label="paper-sim",
+        market_type="perp",
+        last_credential_rotation="2026-03-01T00:00:00Z",
+        status="attention",
+    ),
+]
+
+ALERTS = [
+    AlertEvent(
+        id="alert_001",
+        level="info",
+        title="Backtest completed",
+        detail="BTC Momentum Burst finished in 18.4s with deterministic seed 42.",
+        occurred_at="2026-03-08T11:12:00Z",
+    ),
+    AlertEvent(
+        id="alert_002",
+        level="warning",
+        title="Market data freshness degraded",
+        detail="SOL open interest is 73s behind expected cadence.",
+        occurred_at="2026-03-08T11:06:00Z",
+    ),
+    AlertEvent(
+        id="alert_003",
+        level="critical",
+        title="Credential rotated",
+        detail="Backpack prod key was replaced and old signing material invalidated.",
+        occurred_at="2026-03-08T10:40:00Z",
+    ),
+]
