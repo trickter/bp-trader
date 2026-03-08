@@ -15,7 +15,7 @@ import type {
 } from "./types";
 import { clearAdminToken, getAdminToken, notifyInvalidAdminToken } from "./admin-token";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
 export class ApiError extends Error {
   status: number;

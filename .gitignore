@@ -18,3 +18,4 @@ backend/.coverage
 backend/__pycache__
 backend/.mypy_cache
 postgres-data
+.runtime
