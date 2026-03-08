@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hmac
 from typing import Annotated
 
 from fastapi import Header, HTTPException, status
@@ -16,7 +17,7 @@ async def require_admin_api_token(
             detail="Missing X-Admin-Token header.",
         )
 
-    if x_admin_token != settings.admin_api_token:
+    if not hmac.compare_digest(x_admin_token, settings.admin_api_token):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid admin API token.",

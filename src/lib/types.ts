@@ -73,7 +73,6 @@ export interface TradeMarker {
   timestamp: string;
   candleTimestamp: string;
   action: "open" | "add" | "reduce" | "close" | "stop" | "take_profit";
-  type: "open" | "add" | "reduce" | "close" | "stop" | "take_profit";
   side: "long" | "short";
   price: number;
   qty: number;

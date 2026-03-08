@@ -83,14 +83,14 @@ describe('types', () => {
       const marker = {
         id: 'trade-1',
         timestamp: '2024-01-15T10:00:00Z',
-        type: 'entry',
+        action: 'open',
         side: 'buy',
         price: 500,
         reason: 'signal',
       }
 
       expect(marker.id).toBe('trade-1')
-      expect(marker.type).toBe('entry')
+      expect(marker.action).toBe('open')
       expect(marker.side).toBe('buy')
     })
   })

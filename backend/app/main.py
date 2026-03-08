@@ -9,6 +9,11 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from .backpack import BackpackAuthConfig, BackpackAuthError, BackpackClient, BackpackRequestError
 from .auth import require_admin_api_token
@@ -98,6 +103,16 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# TODO: Issue 019 - No Database Persistence
+# All application state (strategies, backtests, risk controls) is stored in-memory.
+# PostgreSQL is configured in settings but never used for persistence.
+# Technical debt: Implement SQLAlchemy models to persist:
+#   - Strategies and strategy revisions
+#   - Backtest runs and results
+#   - Risk controls configuration
+#   - User sessions and audit logs
+# This is a significant effort requiring proper migration handling.
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -106,7 +121,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        return response
+
+
+app.add_middleware(SecurityHeadersMiddleware)
+
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 api_router = APIRouter(prefix="/api", dependencies=[Depends(require_admin_api_token)])
+
+# Public API router - no admin token required
+# These endpoints provide read-only public market data
+public_api_router = APIRouter(prefix="/api")
 
 
 @app.get("/healthz")
@@ -119,7 +154,88 @@ def healthcheck():
     }
 
 
+# =============================================================================
+# Public API routes - no admin token required
+# =============================================================================
+
+
+@public_api_router.get("/markets/symbols")
+def get_market_symbols_public(request: Request):
+    """Public endpoint: get available market symbols."""
+    return getattr(request.app.state, "market_symbols", MARKET_SYMBOLS)
+
+
+@public_api_router.get("/markets/pulse")
+async def get_market_pulse_public(request: Request):
+    """Public endpoint: get market pulse for default symbol."""
+    market_pulse = await _load_market_pulse(request, symbol=settings.backpack_default_symbol)
+    return [item.data.model_dump(by_alias=True) for item in market_pulse.metrics.items]
+
+
+@public_api_router.get("/markets/pulse/{symbol}")
+async def get_market_pulse_for_symbol_public(request: Request, symbol: str):
+    """Public endpoint: get market pulse for a specific symbol."""
+    market_pulse = await _load_market_pulse(request, symbol=symbol)
+    return [item.data.model_dump(by_alias=True) for item in market_pulse.metrics.items]
+
+
+@public_api_router.get("/markets/{symbol}/klines")
+@limiter.limit("30/minute")
+async def get_klines_public(
+    request: Request,
+    symbol: str,
+    interval: str = Query(...),
+    start_time: int = Query(..., description="UTC seconds"),
+    end_time: int = Query(..., description="UTC seconds"),
+    price_source: PriceSource = Query(...),
+):
+    """Public endpoint: get klines/candlestick data for a symbol."""
+    if settings.backpack_mode == "live":
+        payload = await _provider_fetch(
+            request,
+            lambda provider: provider.fetch_klines(
+                symbol=symbol,
+                interval=interval,
+                start_time=start_time,
+                end_time=end_time,
+                price_source=price_source,
+            ),
+        )
+        return payload.data.model_dump(by_alias=True)
+
+    from .mock_data import _generate_candles
+
+    seed = sum(ord(char) for char in f"{symbol}:{interval}:{price_source}:{start_time}:{end_time}")
+    payload = KlineResponse(
+        symbol=symbol,
+        interval=interval,
+        start_time=start_time,
+        end_time=end_time,
+        price_source=price_source,
+        candles=_generate_candles(
+            symbol=symbol,
+            seed=seed,
+            request=BacktestRequest(
+                symbol=symbol,
+                interval=interval,
+                start_time=start_time,
+                end_time=end_time,
+                price_source=price_source,
+                fee_bps=0,
+                slippage_bps=0,
+            ),
+        ),
+    )
+    return payload.model_dump(by_alias=True)
+
+
+# =============================================================================
+# Admin-only API routes
+# =============================================================================
+
+
 @api_router.get("/profile/summary")
+@limiter.limit("60/minute")
 async def get_profile_summary(request: Request):
     return (await _load_profile_snapshot(request)).summary.data.model_dump(by_alias=True)
 
@@ -155,6 +271,7 @@ def get_strategy(strategy_id: str, request: Request):
 
 
 @api_router.post("/strategies", status_code=status.HTTP_201_CREATED)
+@limiter.limit("20/minute")
 def create_strategy(payload: StrategyUpsertRequest, request: Request):
     strategy_id = f"strat_{uuid4().hex[:8]}"
     strategy = StrategySummary(
@@ -200,6 +317,7 @@ def update_strategy(strategy_id: str, payload: StrategyUpsertRequest, request: R
 
 
 @api_router.post("/strategies/templates/{template_id}/backtests")
+@limiter.limit("10/minute")
 async def create_template_backtest(template_id: str, request: BacktestRequest, http_request: Request):
     _get_strategy_or_404(http_request, template_id)
     return await _create_backtest_run(
@@ -211,6 +329,7 @@ async def create_template_backtest(template_id: str, request: BacktestRequest, h
 
 
 @api_router.post("/strategies/scripts/{strategy_id}/backtests")
+@limiter.limit("10/minute")
 async def create_script_backtest(strategy_id: str, request: BacktestRequest, http_request: Request):
     _get_strategy_or_404(http_request, strategy_id)
     return await _create_backtest_run(
@@ -251,6 +370,7 @@ def get_market_symbols(request: Request):
 
 
 @api_router.get("/markets/{symbol}/klines")
+@limiter.limit("30/minute")
 async def get_klines(
     request: Request,
     symbol: str,
@@ -742,4 +862,5 @@ def _provider_error_detail(*, code: str, message: str, retryable: bool) -> dict[
     }
 
 
+app.include_router(public_api_router)
 app.include_router(api_router)
