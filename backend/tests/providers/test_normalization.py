@@ -1,8 +1,8 @@
 """Tests for Backpack data normalization."""
 from __future__ import annotations
 
+import asyncio
 import pytest
-from datetime import datetime
 
 from app.providers.backpack import (
     BackpackProvider,
@@ -16,7 +16,8 @@ from app.providers.backpack import (
     _coerce_timestamp,
     _map_event_type,
 )
-from app.schemas import EventType, EventOrigin, PriceSource
+from app.providers.base import ProviderError
+from app.schemas import EventType, PriceSource
 
 
 # Import test fixtures
@@ -53,10 +54,18 @@ class TestUnwrapObject:
         assert result == {"key": "value"}
 
     def test_returns_empty_for_invalid(self):
-        """Test returns empty dict for invalid input."""
-        assert _unwrap_object(None) == {}
-        assert _unwrap_object("string") == {}
-        assert _unwrap_object([1, 2, 3]) == {}
+        """Test invalid object shapes fail closed."""
+        with pytest.raises(ProviderError):
+            _unwrap_object(None)
+        with pytest.raises(ProviderError):
+            _unwrap_object("string")
+        with pytest.raises(ProviderError):
+            _unwrap_object([1, 2, 3])
+
+    def test_rejects_multi_record_object_containers(self):
+        """Test object helper rejects list-shaped vendor drift."""
+        with pytest.raises(ProviderError):
+            _unwrap_object([{"a": 1}, {"b": 2}])
 
 
 class TestUnwrapList:
@@ -73,9 +82,14 @@ class TestUnwrapList:
         assert result == [{"a": 1}]
 
     def test_filters_non_dict_items(self):
-        """Test filters out non-dict items."""
-        result = _unwrap_list([{"a": 1}, "string", 123, None])
-        assert len(result) == 1
+        """Test mixed list payloads fail closed."""
+        with pytest.raises(ProviderError):
+            _unwrap_list([{"a": 1}, "string", 123, None])
+
+    def test_rejects_bare_mapping_for_list_payload(self):
+        """Test list helper rejects object payload drift."""
+        with pytest.raises(ProviderError):
+            _unwrap_list({"a": 1})
 
 
 class TestPick:
@@ -223,9 +237,13 @@ class TestMapEventType:
         assert _map_event_type("fee") == EventType.FEE_CHARGE
 
     def test_maps_default_to_trade(self):
-        """Test default to trade fill."""
+        """Test known trade types map to trade fill."""
         assert _map_event_type("trade") == EventType.TRADE_FILL
-        assert _map_event_type("unknown") == EventType.TRADE_FILL
+
+    def test_rejects_unknown_event_type(self):
+        """Test unknown event types fail closed."""
+        with pytest.raises(ProviderError):
+            _map_event_type("unknown")
 
 
 class TestPositionNormalization:
@@ -280,6 +298,38 @@ class TestPositionNormalization:
         positions = provider._normalize_positions([payload], PriceSource.MARK)
         assert positions.items[0].data.side == "short"
 
+    def test_position_missing_symbol_raises(self):
+        """Test malformed position payloads do not fabricate symbols."""
+        provider = BackpackProvider.__new__(BackpackProvider)
+
+        with pytest.raises(ProviderError):
+            provider._normalize_positions(
+                [
+                    {
+                        "quantity": 10.0,
+                        "entryPrice": 500.0,
+                        "markPrice": 510.0,
+                    }
+                ],
+                PriceSource.MARK,
+            )
+
+    def test_position_missing_mark_price_raises(self):
+        """Test vendor drift on required pricing fields fails closed."""
+        provider = BackpackProvider.__new__(BackpackProvider)
+
+        with pytest.raises(ProviderError):
+            provider._normalize_positions(
+                [
+                    {
+                        "symbol": "SOL-PERP",
+                        "quantity": 10.0,
+                        "entryPrice": 500.0,
+                    }
+                ],
+                PriceSource.MARK,
+            )
+
 
 class TestAssetNormalization:
     """Tests for asset/balance normalization."""
@@ -321,6 +371,28 @@ class TestAssetNormalization:
         # Allow small floating point tolerance
         assert abs(total_weight - 100.0) < 0.01
 
+    def test_asset_missing_identifier_raises(self):
+        """Test asset normalization rejects rows without an asset key."""
+        provider = BackpackProvider.__new__(BackpackProvider)
+
+        with pytest.raises(ProviderError):
+            provider._normalize_assets(
+                capital_rows=[{"available": 5000.0, "locked": 100.0}],
+                collateral_rows=[],
+                price_source=PriceSource.MARK,
+            )
+
+    def test_collateral_missing_value_raises(self):
+        """Test collateral rows need an explicit valuation field."""
+        provider = BackpackProvider.__new__(BackpackProvider)
+
+        with pytest.raises(ProviderError):
+            provider._normalize_assets(
+                capital_rows=[{"asset": "USDC", "available": 5000.0, "locked": 100.0}],
+                collateral_rows=[{"asset": "USDC"}],
+                price_source=PriceSource.MARK,
+            )
+
 
 class TestAccountEventNormalization:
     """Tests for account event (fill/funding) normalization."""
@@ -356,17 +428,105 @@ class TestAccountEventNormalization:
         provider = BackpackProvider.__new__(BackpackProvider)
 
         test_cases = [
-            ({"type": "liquidation"}, EventType.LIQUIDATION),
-            ({"fillType": "adl"}, EventType.ADL),
-            ({"eventType": "funding"}, EventType.FUNDING_SETTLEMENT),
-            ({"type": "fee"}, EventType.FEE_CHARGE),
-            ({"type": "deposit"}, EventType.DEPOSIT),
-            ({"type": "withdraw"}, EventType.WITHDRAWAL),
+            ({"type": "liquidation", "quantity": 1, "feeAsset": "USDC", "timestamp": 1705312800000, "id": "evt-1"}, EventType.LIQUIDATION),
+            ({"fillType": "adl", "quantity": 1, "feeAsset": "USDC", "timestamp": 1705312800000, "id": "evt-2"}, EventType.ADL),
+            ({"eventType": "funding", "quantity": 1, "feeAsset": "USDC", "timestamp": 1705312800000, "id": "evt-3"}, EventType.FUNDING_SETTLEMENT),
+            ({"type": "fee", "fee": 1, "feeAsset": "USDC", "timestamp": 1705312800000, "id": "evt-4"}, EventType.FEE_CHARGE),
+            ({"type": "deposit", "quantity": 1, "asset": "USDC", "timestamp": 1705312800000, "id": "evt-5"}, EventType.DEPOSIT),
+            ({"type": "withdraw", "quantity": 1, "asset": "USDC", "timestamp": 1705312800000, "id": "evt-6"}, EventType.WITHDRAWAL),
         ]
 
         for payload, expected_type in test_cases:
             event, _ = provider._normalize_fill_event(payload)
             assert event.event_type == expected_type
+
+    def test_fill_event_missing_id_raises(self):
+        """Test fill normalization rejects fabricated identifiers."""
+        provider = BackpackProvider.__new__(BackpackProvider)
+
+        with pytest.raises(ProviderError):
+            provider._normalize_fill_event(
+                {
+                    "symbol": "SOL-PERP",
+                    "quantity": 1.0,
+                    "feeAsset": "USDC",
+                    "timestamp": 1705312800000,
+                    "fillType": "trade",
+                }
+            )
+
+    def test_fill_event_unknown_type_raises(self):
+        """Test fill normalization rejects unrecognized vendor event types."""
+        provider = BackpackProvider.__new__(BackpackProvider)
+
+        with pytest.raises(ProviderError):
+            provider._normalize_fill_event(
+                {
+                    "id": "fill-123",
+                    "symbol": "SOL-PERP",
+                    "quantity": 1.0,
+                    "feeAsset": "USDC",
+                    "timestamp": 1705312800000,
+                    "fillType": "rebate_credit",
+                }
+            )
+
+    def test_funding_event_missing_symbol_raises(self):
+        """Test funding normalization rejects unknown symbol drift."""
+        provider = BackpackProvider.__new__(BackpackProvider)
+
+        with pytest.raises(ProviderError):
+            provider._normalize_funding_event(
+                {
+                    "id": "funding-001",
+                    "amount": -0.05,
+                    "asset": "USDC",
+                    "timestamp": 1705276800000,
+                }
+            )
+
+
+class TestProviderFetchValidation:
+    """Tests for top-level fetch validation against malformed payloads."""
+
+    def test_fetch_account_snapshot_rejects_unknown_capital_container(self):
+        """Test container drift raises ProviderError before normalization."""
+        class StubClient:
+            async def get_account(self):
+                return SAMPLE_ACCOUNT_RESPONSE
+
+            async def get_capital(self):
+                return {"asset": "USDC", "available": 5000.0}
+
+            async def get_collateral(self):
+                return SAMPLE_COLLATERAL_RESPONSE
+
+            async def get_positions(self, symbol=None):
+                return SAMPLE_POSITIONS_RESPONSE
+
+        provider = BackpackProvider(client=StubClient())
+
+        with pytest.raises(ProviderError):
+            asyncio.run(provider.fetch_account_snapshot())
+
+    def test_fetch_klines_rejects_non_object_rows(self):
+        """Test kline payload drift fails closed instead of filtering rows."""
+        class StubClient:
+            async def get_klines(self, **kwargs):
+                return {"items": [{"timestamp": 1705276800000, "open": 1, "high": 2, "low": 0.5, "close": 1.5, "volume": 10}, "bad-row"]}
+
+        provider = BackpackProvider(client=StubClient())
+
+        with pytest.raises(ProviderError):
+            asyncio.run(
+                provider.fetch_klines(
+                    symbol="SOL-PERP",
+                    interval="1m",
+                    start_time=1705276800000,
+                    end_time=1705277100000,
+                    price_source=PriceSource.MARK,
+                )
+            )
 
 
 class TestProfileSummaryNormalization:
