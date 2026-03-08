@@ -45,7 +45,7 @@ export interface AccountEvent {
     | "adl"
     | "collateral_conversion"
     | "manual_adjustment";
-  eventOrigin: "strategy" | "manual" | "system" | "risk";
+  origin: "strategy" | "manual" | "system" | "risk";
   asset: string;
   amount: number;
   pnlEffect: number;
@@ -85,8 +85,19 @@ export interface Candle {
 
 export interface BacktestResult {
   id: string;
+  strategyId: string;
+  strategyKind: "template" | "script";
   strategyName: string;
+  symbol: string;
+  interval: string;
+  startTime: number;
+  endTime: number;
   priceSource: PriceSource;
+  feeBps: number;
+  slippageBps: number;
+  status: "queued" | "running" | "completed" | "failed";
+  createdAt: string;
+  completedAt: string;
   totalReturn: number;
   maxDrawdown: number;
   sharpe: number;
@@ -94,6 +105,27 @@ export interface BacktestResult {
   candles: Candle[];
   tradeMarkers: TradeMarker[];
   equityCurve: Array<{ timestamp: string; equity: number }>;
+}
+
+export interface BacktestRequest {
+  symbol: string;
+  interval: string;
+  startTime: number;
+  endTime: number;
+  priceSource: PriceSource;
+  feeBps: number;
+  slippageBps: number;
+}
+
+export interface BacktestRunAccepted {
+  id: string;
+  strategyId: string;
+  strategyKind: "template" | "script";
+  status: "queued" | "running" | "completed" | "failed";
+  createdAt: string;
+  resultPath: string;
+  pollAfterMs: number;
+  demoMode: boolean;
 }
 
 export interface MarketMetric {
@@ -118,4 +150,22 @@ export interface ExchangeAccount {
   marketType: string;
   lastCredentialRotation: string;
   status: "healthy" | "attention";
+}
+
+export interface AgentCapability {
+  id: string;
+  label: string;
+  description: string;
+  readOnly: boolean;
+  route: string;
+  entity: string;
+}
+
+export interface AgentContext {
+  mode: string;
+  accountMode: string;
+  availableCapabilities: string[];
+  capabilities: AgentCapability[];
+  domainVocabulary: string[];
+  resources: Record<string, string>;
 }

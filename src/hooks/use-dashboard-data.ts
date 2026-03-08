@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+type DashboardStatus = "loading" | "error" | "empty" | "success";
+
 export function useDashboardData<T>(load: () => Promise<T>, initialData: T) {
   const [data, setData] = useState<T>(initialData);
   const [loading, setLoading] = useState(true);
@@ -22,6 +24,7 @@ export function useDashboardData<T>(load: () => Promise<T>, initialData: T) {
           return;
         }
 
+        setData(initialData);
         setError(cause instanceof Error ? cause.message : "Unknown error");
       })
       .finally(() => {
@@ -35,5 +38,19 @@ export function useDashboardData<T>(load: () => Promise<T>, initialData: T) {
     };
   }, [load]);
 
-  return { data, loading, error };
+  const isEmptyArray = Array.isArray(data) && data.length === 0;
+  const isEmptyObject =
+    !Array.isArray(data) &&
+    typeof data === "object" &&
+    data !== null &&
+    Object.keys(data).length === 0;
+  const status: DashboardStatus = loading
+    ? "loading"
+    : error
+      ? "error"
+      : isEmptyArray || isEmptyObject
+        ? "empty"
+        : "success";
+
+  return { data, loading, error, status };
 }

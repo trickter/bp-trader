@@ -1,3 +1,4 @@
+import { LoadingBlock, SectionState } from "../components/async-state";
 import { DataTable } from "../components/data-table";
 import { Card } from "../components/ui/card";
 import { SectionTitle } from "../components/ui/section-title";
@@ -16,30 +17,46 @@ export function StrategiesPage() {
           title="Strategy registry"
           description="Templates and script-based strategies compile into the same normalized execution intent."
         />
-        <DataTable
-          rows={strategies.data}
-          columns={[
-            { key: "name", label: "Strategy", render: (item) => item.name },
-            { key: "kind", label: "Kind", render: (item) => item.kind },
-            { key: "market", label: "Market", render: (item) => item.market },
-            {
-              key: "runtime",
-              label: "Runtime",
-              render: (item) => <StatusPill>{item.runtime}</StatusPill>,
-            },
-            {
-              key: "status",
-              label: "Status",
-              render: (item) => (
-                <StatusPill tone={item.status === "healthy" ? "positive" : "neutral"}>
-                  {item.status}
-                </StatusPill>
-              ),
-            },
-            { key: "sharpe", label: "Sharpe", render: (item) => item.sharpe.toFixed(2) },
-            { key: "priceSource", label: "Price source", render: (item) => item.priceSource },
-          ]}
-        />
+        {strategies.loading ? (
+          <LoadingBlock rows={4} />
+        ) : strategies.error ? (
+          <SectionState
+            title="Strategy registry failed to load"
+            detail={strategies.error}
+            tone="error"
+          />
+        ) : strategies.data.length === 0 ? (
+          <SectionState
+            title="No strategies configured"
+            detail="Create a template or script strategy to start building backtests."
+          />
+        ) : (
+          <DataTable
+            rows={strategies.data}
+            getRowKey={(item) => item.id}
+            columns={[
+              { key: "name", label: "Strategy", render: (item) => item.name },
+              { key: "kind", label: "Kind", render: (item) => item.kind },
+              { key: "market", label: "Market", render: (item) => item.market },
+              {
+                key: "runtime",
+                label: "Runtime",
+                render: (item) => <StatusPill>{item.runtime}</StatusPill>,
+              },
+              {
+                key: "status",
+                label: "Status",
+                render: (item) => (
+                  <StatusPill tone={item.status === "healthy" ? "positive" : "neutral"}>
+                    {item.status}
+                  </StatusPill>
+                ),
+              },
+              { key: "sharpe", label: "Sharpe", render: (item) => item.sharpe.toFixed(2) },
+              { key: "priceSource", label: "Price source", render: (item) => item.priceSource },
+            ]}
+          />
+        )}
       </Card>
 
       <div className="space-y-6">

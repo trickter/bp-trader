@@ -1,8 +1,12 @@
 import type {
   AccountEvent,
+  AgentCapability,
+  AgentContext,
   AlertEvent,
   AssetBalance,
+  BacktestRequest,
   BacktestResult,
+  BacktestRunAccepted,
   ExchangeAccount,
   MarketMetric,
   Position,
@@ -13,23 +17,70 @@ import { clearAdminToken, getAdminToken, notifyInvalidAdminToken } from "./admin
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
+export class ApiError extends Error {
+  status: number;
+  code?: string;
+  retryable?: boolean;
+
+  constructor(message: string, status: number, code?: string, retryable?: boolean) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+    this.retryable = retryable;
+  }
+}
+
 async function getJson<T>(path: string): Promise<T> {
+  return requestJson<T>(path, { method: "GET" });
+}
+
+async function postJson<T>(path: string, body: unknown): Promise<T> {
+  return requestJson<T>(path, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+async function requestJson<T>(path: string, init: RequestInit): Promise<T> {
   const adminToken = getAdminToken();
   const headers = new Headers();
 
   if (adminToken) {
     headers.set("X-Admin-Token", adminToken);
   }
+  if (init.body) {
+    headers.set("Content-Type", "application/json");
+  }
 
-  const response = await fetch(`${API_BASE}${path}`, { headers });
+  const response = await fetch(`${API_BASE}${path}`, { ...init, headers });
 
   if (!response.ok) {
+    let message = `Request failed: ${response.status}`;
+    let code: string | undefined;
+    let retryable: boolean | undefined;
+
+    try {
+      const payload = (await response.json()) as {
+        detail?: string | { message?: string; code?: string; retryable?: boolean };
+      };
+      if (typeof payload.detail === "string") {
+        message = payload.detail;
+      } else if (payload.detail && typeof payload.detail.message === "string") {
+        message = payload.detail.message;
+        code = payload.detail.code;
+        retryable = payload.detail.retryable;
+      }
+    } catch {
+      // Ignore JSON parsing errors and keep the HTTP-derived message.
+    }
+
     if (response.status === 401 || response.status === 403) {
       clearAdminToken();
       notifyInvalidAdminToken();
     }
 
-    throw new Error(`Request failed: ${response.status}`);
+    throw new ApiError(message, response.status, code, retryable);
   }
 
   return (await response.json()) as T;
@@ -41,8 +92,14 @@ export const api = {
   profilePositions: () => getJson<Position[]>("/api/profile/positions"),
   accountEvents: () => getJson<AccountEvent[]>("/api/profile/account-events"),
   strategies: () => getJson<StrategySummary[]>("/api/strategies"),
-  backtest: () => getJson<BacktestResult>("/api/backtests/demo"),
+  createTemplateBacktest: (templateId: string, request: BacktestRequest) =>
+    postJson<BacktestRunAccepted>(`/api/strategies/templates/${templateId}/backtests`, request),
+  createScriptBacktest: (strategyId: string, request: BacktestRequest) =>
+    postJson<BacktestRunAccepted>(`/api/strategies/scripts/${strategyId}/backtests`, request),
+  getBacktest: (backtestId: string) => getJson<BacktestResult>(`/api/backtests/${backtestId}`),
   marketPulse: () => getJson<MarketMetric[]>("/api/markets/pulse"),
   alerts: () => getJson<AlertEvent[]>("/api/alerts"),
   exchangeAccounts: () => getJson<ExchangeAccount[]>("/api/settings/accounts"),
+  agentCapabilities: () => getJson<AgentCapability[]>("/api/agent/capabilities"),
+  agentContext: () => getJson<AgentContext>("/api/agent/context"),
 };

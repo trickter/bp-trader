@@ -1,3 +1,4 @@
+import { LoadingBlock, SectionState } from "../components/async-state";
 import { Card } from "../components/ui/card";
 import { SectionTitle } from "../components/ui/section-title";
 import { StatusPill } from "../components/ui/status-pill";
@@ -14,33 +15,48 @@ export function AlertsPage() {
         title="Operational alerts"
         description="Backtests, data freshness, risk transitions, and credential events are routed into a single admin feed."
       />
-      <div className="space-y-4">
-        {alerts.data.map((alert) => (
-          <div
-            key={alert.id}
-            className="rounded-[24px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] p-5"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-lg font-semibold text-white">{alert.title}</p>
-                <p className="mt-1 text-sm text-slate-400">{alert.detail}</p>
+      {alerts.loading ? (
+        <LoadingBlock rows={4} />
+      ) : alerts.error ? (
+        <SectionState
+          title="Alert stream failed to load"
+          detail={alerts.error}
+          tone="error"
+        />
+      ) : alerts.data.length === 0 ? (
+        <SectionState
+          title="No alerts right now"
+          detail="Critical backtests, data freshness faults, and credential events will surface here."
+        />
+      ) : (
+        <div className="space-y-4">
+          {alerts.data.map((alert) => (
+            <div
+              key={alert.id}
+              className="rounded-[24px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] p-5"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-lg font-semibold text-white">{alert.title}</p>
+                  <p className="mt-1 text-sm text-slate-400">{alert.detail}</p>
+                </div>
+                <StatusPill
+                  tone={
+                    alert.level === "critical"
+                      ? "negative"
+                      : alert.level === "warning"
+                        ? "neutral"
+                        : "positive"
+                  }
+                >
+                  {alert.level}
+                </StatusPill>
               </div>
-              <StatusPill
-                tone={
-                  alert.level === "critical"
-                    ? "negative"
-                    : alert.level === "warning"
-                      ? "neutral"
-                      : "positive"
-                }
-              >
-                {alert.level}
-              </StatusPill>
+              <p className="mt-3 text-xs uppercase tracking-[0.24em] text-slate-500">{alert.occurredAt}</p>
             </div>
-            <p className="mt-3 text-xs uppercase tracking-[0.24em] text-slate-500">{alert.occurredAt}</p>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </Card>
   );
 }

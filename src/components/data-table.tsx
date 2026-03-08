@@ -12,10 +12,12 @@ export interface Column<T> {
 export function DataTable<T>({
   columns,
   rows,
+  getRowKey,
   emptyText = "No data",
 }: {
   columns: Column<T>[];
   rows: T[];
+  getRowKey: (row: T) => string;
   emptyText?: string;
 }) {
   return (
@@ -47,8 +49,8 @@ export function DataTable<T>({
               </td>
             </tr>
           ) : (
-            rows.map((row, rowIndex) => (
-              <tr key={rowIndex} className="text-sm text-slate-200">
+            rows.map((row) => (
+              <tr key={getRowKey(row)} className="text-sm text-slate-200">
                 {columns.map((column) => (
                   <td key={column.key} className="px-4 py-3">
                     {column.render(row)}
