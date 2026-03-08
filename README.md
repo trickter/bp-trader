@@ -19,6 +19,7 @@ The backend is prepared for two data modes:
 When `live` is enabled, set:
 
 - `ADMIN_API_TOKEN`
+- `ALLOW_INSECURE_DEV_DEFAULTS=false`
 - `BACKPACK_API_BASE_URL`
 - `BACKPACK_API_KEY`
 - `BACKPACK_PRIVATE_KEY`
@@ -67,8 +68,17 @@ All `/api/*` routes require an `X-Admin-Token` header that matches `ADMIN_API_TO
 - `GET /api/markets/pulse`
 - `GET /api/alerts`
 - `GET /api/settings/accounts`
+- `GET /api/agent/capabilities`
+- `GET /api/agent/context`
 - `POST /api/strategies/templates/:template_id/backtests`
 - `POST /api/strategies/scripts/:strategy_id/backtests`
+
+Backtest runs now follow an explicit lifecycle:
+
+1. `POST /api/strategies/.../backtests` creates a run and returns an id plus `resultPath`
+2. `GET /api/backtests/:id` retrieves the normalized result payload
+
+The admin UI now uses that same flow for its preview run instead of reading a singleton demo response directly.
 
 ## Local Run
 
@@ -77,6 +87,8 @@ cp .env.example .env
 npm install
 npm run dev
 ```
+
+`.env.example` intentionally opts into weak local-only secrets with `ALLOW_INSECURE_DEV_DEFAULTS=true`. Outside local development or tests, unset that flag and provide a real `ADMIN_API_TOKEN`, a non-default `DATABASE_URL`, and, for live mode, real Backpack credentials. Startup now fails fast when those requirements are not met.
 
 Backend:
 
@@ -106,6 +118,8 @@ Compose:
 ```bash
 docker compose up --build
 ```
+
+`docker compose` now requires explicit `DATABASE_URL`, `ADMIN_API_TOKEN`, and `POSTGRES_PASSWORD` values from `.env` rather than silently falling back to weak secrets.
 
 Frontend: `http://localhost:5173`  
 Backend docs: `http://localhost:8000/docs`

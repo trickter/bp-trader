@@ -1,5 +1,6 @@
 from .schemas import (
     AccountEvent,
+    BacktestRunAccepted,
     AlertEvent,
     AssetBalance,
     BacktestResult,
@@ -188,8 +189,19 @@ CANDLES = [
 
 BACKTEST_RESULT = BacktestResult(
     id="demo",
+    strategy_id="strat_001",
+    strategy_kind="template",
     strategy_name="BTC Momentum Burst",
+    symbol="BTC_USDC_PERP",
+    interval="1d",
+    start_time=1740787200,
+    end_time=1741305600,
     price_source=PriceSource.LAST,
+    fee_bps=2.0,
+    slippage_bps=4.0,
+    status="completed",
+    created_at="2026-03-08T10:12:00Z",
+    completed_at="2026-03-08T10:12:02Z",
     total_return=28.4,
     max_drawdown=-7.9,
     sharpe=2.47,
@@ -239,6 +251,49 @@ BACKTEST_RESULT = BacktestResult(
         EquityPoint(timestamp="2026-03-07T00:00:00Z", equity=128.4),
     ],
 )
+
+
+def build_backtest_result(
+    *,
+    backtest_id: str,
+    strategy_id: str,
+    strategy_kind: str,
+    request,
+) -> BacktestResult:
+    return BACKTEST_RESULT.model_copy(
+        update={
+            "id": backtest_id,
+            "strategy_id": strategy_id,
+            "strategy_kind": strategy_kind,
+            "symbol": request.symbol,
+            "interval": request.interval,
+            "start_time": request.start_time,
+            "end_time": request.end_time,
+            "price_source": request.price_source,
+            "fee_bps": request.fee_bps,
+            "slippage_bps": request.slippage_bps,
+        }
+    )
+
+
+def build_backtest_acceptance(
+    *,
+    backtest_id: str,
+    strategy_id: str,
+    strategy_kind: str,
+    created_at: str,
+    demo_mode: bool,
+) -> BacktestRunAccepted:
+    return BacktestRunAccepted(
+        id=backtest_id,
+        strategy_id=strategy_id,
+        strategy_kind=strategy_kind,
+        status="completed",
+        created_at=created_at,
+        result_path=f"/api/backtests/{backtest_id}",
+        poll_after_ms=0,
+        demo_mode=demo_mode,
+    )
 
 MARKET_PULSE = [
     MarketMetric(label="BTC depth", value="WS realtime", freshness="sub-second", tone="positive"),

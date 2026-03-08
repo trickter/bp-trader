@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Mapping
@@ -38,10 +39,17 @@ class BackpackProvider:
         self,
         price_source: PriceSource = PriceSource.MARK,
     ) -> AccountSnapshot:
-        account_payload = await self.client.get_account()
-        capital_payload = await self.client.get_capital()
-        collateral_payload = await self.client.get_collateral()
-        positions_payload = await self.client.get_positions()
+        (
+            account_payload,
+            capital_payload,
+            collateral_payload,
+            positions_payload,
+        ) = await asyncio.gather(
+            self.client.get_account(),
+            self.client.get_capital(),
+            self.client.get_collateral(),
+            self.client.get_positions(),
+        )
 
         account = _unwrap_object(account_payload, context="backpack account")
         capital_rows = _unwrap_list(capital_payload, context="backpack capital")
@@ -67,8 +75,10 @@ class BackpackProvider:
         symbol: str | None = None,
         limit: int = 100,
     ) -> NormalizedList[AccountEvent]:
-        fills_payload = await self.client.get_fills(symbol=symbol, limit=limit)
-        funding_payload = await self.client.get_funding_history(symbol=symbol, limit=limit)
+        fills_payload, funding_payload = await asyncio.gather(
+            self.client.get_fills(symbol=symbol, limit=limit),
+            self.client.get_funding_history(symbol=symbol, limit=limit),
+        )
 
         warnings: list[str] = []
         items: list[NormalizedRecord[AccountEvent]] = []
@@ -87,21 +97,28 @@ class BackpackProvider:
     async def fetch_market_pulse(
         self,
         symbol: str,
-        interval: str,
-        start_time: int,
-        end_time: int,
         price_source: PriceSource,
+        interval: str | None = None,
+        start_time: int | None = None,
+        end_time: int | None = None,
+        include_klines: bool = False,
     ) -> MarketPulseSnapshot:
-        market_payload = await self.client.get_market(symbol)
-        open_interest_payload = await self.client.get_open_interest(symbol)
-        funding_payload = await self.client.get_funding_rates(symbol=symbol)
-        klines = await self.fetch_klines(
-            symbol=symbol,
-            interval=interval,
-            start_time=start_time,
-            end_time=end_time,
-            price_source=price_source,
+        market_payload, open_interest_payload, funding_payload = await asyncio.gather(
+            self.client.get_market(symbol),
+            self.client.get_open_interest(symbol),
+            self.client.get_funding_rates(symbol=symbol),
         )
+        klines = None
+        if include_klines:
+            if interval is None or start_time is None or end_time is None:
+                raise ValueError("interval, start_time, and end_time are required when include_klines is true.")
+            klines = await self.fetch_klines(
+                symbol=symbol,
+                interval=interval,
+                start_time=start_time,
+                end_time=end_time,
+                price_source=price_source,
+            )
 
         market = _unwrap_object(market_payload, context=f"backpack market {symbol}")
         open_interest = _unwrap_object(open_interest_payload, context=f"backpack open interest {symbol}")

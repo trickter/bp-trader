@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-trader}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
     ports:
       - "5432:5432"
     volumes:
@@ -15,10 +15,11 @@ services:
       context: ./backend
     environment:
       APP_ENV: ${APP_ENV:-development}
+      ALLOW_INSECURE_DEV_DEFAULTS: ${ALLOW_INSECURE_DEV_DEFAULTS:-true}
       APP_HOST: ${APP_HOST:-0.0.0.0}
       APP_PORT: ${APP_PORT:-8000}
-      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/trader}
-      ADMIN_API_TOKEN: ${ADMIN_API_TOKEN:-dev-admin-token}
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
+      ADMIN_API_TOKEN: ${ADMIN_API_TOKEN:?set ADMIN_API_TOKEN in .env}
       BACKPACK_MODE: ${BACKPACK_MODE:-mock}
       BACKPACK_API_BASE_URL: ${BACKPACK_API_BASE_URL:-https://api.backpack.exchange}
       BACKPACK_API_KEY: ${BACKPACK_API_KEY:-}

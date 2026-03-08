@@ -124,8 +124,19 @@ class EquityPoint(APIModel):
 
 class BacktestResult(APIModel):
     id: str
+    strategy_id: str = ""
+    strategy_kind: str = "template"
     strategy_name: str
+    symbol: str = ""
+    interval: str = ""
+    start_time: int = 0
+    end_time: int = 0
     price_source: PriceSource
+    fee_bps: float = 0
+    slippage_bps: float = 0
+    status: str = "completed"
+    created_at: str = ""
+    completed_at: str = ""
     total_return: float
     max_drawdown: float
     sharpe: float
@@ -184,3 +195,32 @@ class BacktestRequest(APIModel):
     price_source: PriceSource
     fee_bps: float
     slippage_bps: float
+
+
+class BacktestRunAccepted(APIModel):
+    id: str
+    strategy_id: str
+    strategy_kind: str
+    status: str
+    created_at: str
+    result_path: str
+    poll_after_ms: int = 0
+    demo_mode: bool = False
+
+
+class AgentCapability(APIModel):
+    id: str
+    label: str
+    description: str
+    read_only: bool = True
+    route: str
+    entity: str
+
+
+class AgentContext(APIModel):
+    mode: str
+    account_mode: str
+    available_capabilities: list[str]
+    capabilities: list[AgentCapability]
+    domain_vocabulary: list[str]
+    resources: dict[str, str]

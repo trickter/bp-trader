@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
+import time
 from typing import Any
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,15 +24,26 @@ from .mock_data import (
     POSITIONS,
     PROFILE_SUMMARY,
     STRATEGIES,
+    build_backtest_acceptance,
+    build_backtest_result,
 )
 from .providers import BackpackProvider, ProviderError
-from .schemas import BacktestRequest, KlineResponse, PriceSource
+from .schemas import (
+    AgentCapability,
+    AgentContext,
+    BacktestRequest,
+    KlineResponse,
+    PriceSource,
+)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.backpack_client = None
     app.state.backpack_provider = None
+    app.state.backtest_runs = {"demo": BACKTEST_RESULT}
+    app.state.live_profile_snapshot_cache = {}
+    app.state.live_profile_snapshot_locks = {}
 
     if settings.backpack_mode == "live":
         client = BackpackClient(
@@ -85,55 +100,25 @@ def healthcheck():
 
 @api_router.get("/profile/summary")
 async def get_profile_summary(request: Request):
-    if settings.backpack_mode == "live":
-        snapshot = await _provider_fetch(
-            request,
-            lambda provider: provider.fetch_account_snapshot(
-                price_source=PriceSource(settings.backpack_default_price_source)
-            ),
-        )
-        return snapshot.summary.data.model_dump(by_alias=True)
-    return PROFILE_SUMMARY.model_dump(by_alias=True)
+    return (await _load_profile_snapshot(request)).summary.data.model_dump(by_alias=True)
 
 
 @api_router.get("/profile/assets")
 async def get_profile_assets(request: Request):
-    if settings.backpack_mode == "live":
-        snapshot = await _provider_fetch(
-            request,
-            lambda provider: provider.fetch_account_snapshot(
-                price_source=PriceSource(settings.backpack_default_price_source)
-            ),
-        )
-        return [item.data.model_dump(by_alias=True) for item in snapshot.assets.items]
-    return [item.model_dump(by_alias=True) for item in ASSET_BALANCES]
+    snapshot = await _load_profile_snapshot(request)
+    return [item.data.model_dump(by_alias=True) for item in snapshot.assets.items]
 
 
 @api_router.get("/profile/positions")
 async def get_profile_positions(request: Request):
-    if settings.backpack_mode == "live":
-        snapshot = await _provider_fetch(
-            request,
-            lambda provider: provider.fetch_account_snapshot(
-                price_source=PriceSource(settings.backpack_default_price_source)
-            ),
-        )
-        return [item.data.model_dump(by_alias=True) for item in snapshot.positions.items]
-    return [item.model_dump(by_alias=True) for item in POSITIONS]
+    snapshot = await _load_profile_snapshot(request)
+    return [item.data.model_dump(by_alias=True) for item in snapshot.positions.items]
 
 
 @api_router.get("/profile/account-events")
 async def get_account_events(request: Request):
-    if settings.backpack_mode == "live":
-        events = await _provider_fetch(
-            request,
-            lambda provider: provider.fetch_account_events(
-                symbol=settings.backpack_default_symbol,
-                limit=50,
-            ),
-        )
-        return [item.data.model_dump(by_alias=True) for item in events.items]
-    return [item.model_dump(by_alias=True) for item in ACCOUNT_EVENTS]
+    events = await _load_account_events(request)
+    return [item.data.model_dump(by_alias=True) for item in events.items]
 
 
 @api_router.get("/strategies")
@@ -142,48 +127,41 @@ def get_strategies():
 
 
 @api_router.post("/strategies/templates/{template_id}/backtests")
-def create_template_backtest(template_id: str, request: BacktestRequest):
-    payload = BACKTEST_RESULT.model_copy(
-        update={
-            "id": f"template-{template_id}-preview",
-            "price_source": request.price_source,
-        }
+def create_template_backtest(template_id: str, request: BacktestRequest, http_request: Request):
+    return _create_backtest_run(
+        app_request=http_request,
+        strategy_id=template_id,
+        strategy_kind="template",
+        request=request,
     )
-    return payload.model_dump(by_alias=True)
 
 
 @api_router.post("/strategies/scripts/{strategy_id}/backtests")
-def create_script_backtest(strategy_id: str, request: BacktestRequest):
-    payload = BACKTEST_RESULT.model_copy(
-        update={
-            "id": f"script-{strategy_id}-preview",
-            "price_source": request.price_source,
-        }
+def create_script_backtest(strategy_id: str, request: BacktestRequest, http_request: Request):
+    return _create_backtest_run(
+        app_request=http_request,
+        strategy_id=strategy_id,
+        strategy_kind="script",
+        request=request,
     )
-    return payload.model_dump(by_alias=True)
 
 
 @api_router.get("/backtests/{backtest_id}")
-def get_backtest(backtest_id: str):
-    payload = BACKTEST_RESULT.model_copy(update={"id": backtest_id})
+def get_backtest(backtest_id: str, request: Request):
+    registry = getattr(request.app.state, "backtest_runs", {})
+    payload = registry.get(backtest_id)
+    if payload is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "backtest_not_found", "message": "Backtest run does not exist."},
+        )
     return payload.model_dump(by_alias=True)
 
 
 @api_router.get("/markets/pulse")
 async def get_market_pulse(request: Request):
-    if settings.backpack_mode == "live":
-        market_pulse = await _provider_fetch(
-            request,
-            lambda provider: provider.fetch_market_pulse(
-                symbol=settings.backpack_default_symbol,
-                interval=settings.backpack_default_interval,
-                start_time=0,
-                end_time=0,
-                price_source=PriceSource(settings.backpack_default_price_source),
-            ),
-        )
-        return [item.data.model_dump(by_alias=True) for item in market_pulse.metrics.items]
-    return [item.model_dump(by_alias=True) for item in MARKET_PULSE]
+    market_pulse = await _load_market_pulse(request)
+    return [item.data.model_dump(by_alias=True) for item in market_pulse.metrics.items]
 
 
 @api_router.get("/markets/{symbol}/klines")
@@ -227,10 +205,282 @@ def get_alerts():
 @api_router.get("/settings/accounts")
 @api_router.get("/settings/exchange-accounts")
 async def get_exchange_accounts(request: Request):
-    if settings.backpack_mode == "live":
-        accounts = await _provider_fetch(request, lambda provider: provider.fetch_exchange_accounts())
-        return [item.data.model_dump(by_alias=True) for item in accounts.items]
-    return [item.model_dump(by_alias=True) for item in EXCHANGE_ACCOUNTS]
+    accounts = await _load_exchange_accounts(request)
+    return [item.data.model_dump(by_alias=True) for item in accounts.items]
+
+
+@api_router.get("/agent/capabilities")
+async def get_agent_capabilities():
+    return [item.model_dump(by_alias=True) for item in _agent_capabilities()]
+
+
+@api_router.get("/agent/context")
+async def get_agent_context(request: Request):
+    accounts = await _load_exchange_accounts(request)
+    account_mode = "live" if settings.backpack_mode == "live" else "mock"
+    resources = {
+        "profileSummary": "/api/profile/summary",
+        "profileAssets": "/api/profile/assets",
+        "profilePositions": "/api/profile/positions",
+        "profileAccountEvents": "/api/profile/account-events",
+        "strategies": "/api/strategies",
+        "marketPulse": "/api/markets/pulse",
+        "exchangeAccounts": "/api/settings/accounts",
+        "alerts": "/api/alerts",
+        "backtests": "/api/backtests/{id}",
+    }
+    payload = AgentContext(
+        mode="admin",
+        account_mode=account_mode,
+        available_capabilities=[item.id for item in _agent_capabilities()],
+        capabilities=_agent_capabilities(),
+        domain_vocabulary=[
+            "price_source",
+            "account_event",
+            "strategy_spec",
+            "execution_intent",
+            "backtest_run",
+            "market_pulse",
+            "exchange_account",
+        ],
+        resources=resources,
+    )
+    return payload.model_dump(by_alias=True)
+
+
+def _create_backtest_run(
+    *,
+    app_request: Request,
+    strategy_id: str,
+    strategy_kind: str,
+    request: BacktestRequest,
+) -> dict[str, object]:
+    backtest_id = f"{strategy_kind}-{strategy_id}-{uuid4().hex[:8]}"
+    created_at = datetime.now(tz=UTC).isoformat().replace("+00:00", "Z")
+    payload = build_backtest_result(
+        backtest_id=backtest_id,
+        strategy_id=strategy_id,
+        strategy_kind=strategy_kind,
+        request=request,
+    )
+    app_request.app.state.backtest_runs[backtest_id] = payload
+    acceptance = build_backtest_acceptance(
+        backtest_id=backtest_id,
+        strategy_id=strategy_id,
+        strategy_kind=strategy_kind,
+        created_at=created_at,
+        demo_mode=settings.backpack_mode == "mock",
+    )
+    return acceptance.model_dump(by_alias=True)
+
+
+async def _load_profile_snapshot(request: Request):
+    if settings.backpack_mode != "live":
+        return _build_mock_profile_snapshot()
+    return await _request_cache(
+        request,
+        "profile_snapshot",
+        lambda: _load_live_profile_snapshot(
+            request,
+            PriceSource(settings.backpack_default_price_source),
+        ),
+    )
+
+
+async def _load_account_events(request: Request):
+    if settings.backpack_mode != "live":
+        return _build_mock_account_events()
+    return await _request_cache(
+        request,
+        "account_events",
+        lambda: _provider_fetch(
+            request,
+            lambda provider: provider.fetch_account_events(
+                symbol=settings.backpack_default_symbol,
+                limit=50,
+            ),
+        ),
+    )
+
+
+async def _load_market_pulse(request: Request):
+    if settings.backpack_mode != "live":
+        return _build_mock_market_pulse()
+    return await _request_cache(
+        request,
+        "market_pulse",
+        lambda: _provider_fetch(
+            request,
+            lambda provider: provider.fetch_market_pulse(
+                symbol=settings.backpack_default_symbol,
+                price_source=PriceSource(settings.backpack_default_price_source),
+                include_klines=False,
+            ),
+        ),
+    )
+
+
+async def _load_exchange_accounts(request: Request):
+    if settings.backpack_mode != "live":
+        return _build_mock_exchange_accounts()
+    return await _request_cache(
+        request,
+        "exchange_accounts",
+        lambda: _provider_fetch(request, lambda provider: provider.fetch_exchange_accounts()),
+    )
+
+
+async def _request_cache(request: Request, key: str, factory):
+    cache = request.scope.setdefault("quant_cache", {})
+    if key not in cache:
+        cache[key] = asyncio.create_task(factory())
+    return await cache[key]
+
+
+LIVE_PROFILE_SNAPSHOT_TTL_SECONDS = 1.0
+
+
+async def _load_live_profile_snapshot(request: Request, price_source: PriceSource):
+    cache_key = price_source.value
+    cache = request.app.state.live_profile_snapshot_cache
+    locks = request.app.state.live_profile_snapshot_locks
+
+    entry = cache.get(cache_key)
+    now = time.monotonic()
+    if entry is not None and entry["expires_at"] > now:
+        return entry["snapshot"]
+
+    lock = locks.setdefault(cache_key, asyncio.Lock())
+    async with lock:
+        entry = cache.get(cache_key)
+        now = time.monotonic()
+        if entry is not None and entry["expires_at"] > now:
+            return entry["snapshot"]
+
+        snapshot = await _provider_fetch(
+            request,
+            lambda provider: provider.fetch_account_snapshot(price_source=price_source),
+        )
+        cache[cache_key] = {
+            "snapshot": snapshot,
+            "expires_at": now + LIVE_PROFILE_SNAPSHOT_TTL_SECONDS,
+        }
+        return snapshot
+
+
+def _build_mock_profile_snapshot():
+    from .providers.base import AccountSnapshot, NormalizedList, NormalizedRecord
+
+    return AccountSnapshot(
+        summary=NormalizedRecord(data=PROFILE_SUMMARY, raw_payload=PROFILE_SUMMARY.model_dump(by_alias=True)),
+        assets=NormalizedList(
+            items=[NormalizedRecord(data=item, raw_payload=item.model_dump(by_alias=True)) for item in ASSET_BALANCES]
+        ),
+        positions=NormalizedList(
+            items=[NormalizedRecord(data=item, raw_payload=item.model_dump(by_alias=True)) for item in POSITIONS]
+        ),
+    )
+
+
+def _build_mock_account_events():
+    from .providers.base import NormalizedList, NormalizedRecord
+
+    return NormalizedList(
+        items=[NormalizedRecord(data=item, raw_payload=item.model_dump(by_alias=True)) for item in ACCOUNT_EVENTS]
+    )
+
+
+def _build_mock_market_pulse():
+    from .providers.base import MarketPulseSnapshot, NormalizedList, NormalizedRecord
+
+    return MarketPulseSnapshot(
+        metrics=NormalizedList(
+            items=[NormalizedRecord(data=item, raw_payload=item.model_dump(by_alias=True)) for item in MARKET_PULSE]
+        )
+    )
+
+
+def _build_mock_exchange_accounts():
+    from .providers.base import NormalizedList, NormalizedRecord
+
+    return NormalizedList(
+        items=[NormalizedRecord(data=item, raw_payload=item.model_dump(by_alias=True)) for item in EXCHANGE_ACCOUNTS]
+    )
+
+
+def _agent_capabilities() -> list[AgentCapability]:
+    return [
+        AgentCapability(
+            id="profile.summary.read",
+            label="Read profile summary",
+            description="Read normalized equity, margin, pnl, and sync state.",
+            route="/api/profile/summary",
+            entity="profile_summary",
+        ),
+        AgentCapability(
+            id="profile.assets.read",
+            label="Read asset balances",
+            description="Read normalized asset balances with collateral value and weight.",
+            route="/api/profile/assets",
+            entity="asset_balance",
+        ),
+        AgentCapability(
+            id="profile.positions.read",
+            label="Read open positions",
+            description="Read normalized positions with mark price and pnl.",
+            route="/api/profile/positions",
+            entity="position",
+        ),
+        AgentCapability(
+            id="profile.events.read",
+            label="Read account ledger",
+            description="Read normalized account events for fills, funding, fees, and system actions.",
+            route="/api/profile/account-events",
+            entity="account_event",
+        ),
+        AgentCapability(
+            id="strategies.read",
+            label="Read strategies",
+            description="Read strategy registry metadata and last backtest context.",
+            route="/api/strategies",
+            entity="strategy",
+        ),
+        AgentCapability(
+            id="backtests.create",
+            label="Create backtest run",
+            description="Create a backtest run using the same request contract as the admin UI.",
+            route="/api/strategies/{template_or_script}/backtests",
+            entity="backtest_run",
+        ),
+        AgentCapability(
+            id="backtests.read",
+            label="Read backtest result",
+            description="Read a normalized backtest result by id.",
+            route="/api/backtests/{id}",
+            entity="backtest_result",
+        ),
+        AgentCapability(
+            id="markets.pulse.read",
+            label="Read market pulse",
+            description="Read operator-facing market pulse metrics with freshness semantics.",
+            route="/api/markets/pulse",
+            entity="market_metric",
+        ),
+        AgentCapability(
+            id="markets.klines.read",
+            label="Read klines",
+            description="Read normalized klines by symbol, interval, time range, and price source.",
+            route="/api/markets/{symbol}/klines",
+            entity="kline",
+        ),
+        AgentCapability(
+            id="settings.exchange_accounts.read",
+            label="Read exchange accounts",
+            description="Read normalized exchange-account metadata and credential rotation state.",
+            route="/api/settings/accounts",
+            entity="exchange_account",
+        ),
+    ]
 
 
 async def _provider_fetch(request: Request, callback):

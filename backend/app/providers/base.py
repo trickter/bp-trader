@@ -120,10 +120,11 @@ class QuantDataProvider(Protocol):
     async def fetch_market_pulse(
         self,
         symbol: str,
-        interval: str,
-        start_time: int,
-        end_time: int,
         price_source: PriceSource,
+        interval: str | None = None,
+        start_time: int | None = None,
+        end_time: int | None = None,
+        include_klines: bool = False,
     ) -> MarketPulseSnapshot:
         ...
 
