@@ -6,6 +6,8 @@ from app.backpack.exceptions import BackpackAuthError, BackpackRequestError
 from app.main import app
 from app.providers import ProviderError
 
+ADMIN_HEADERS = {"X-Admin-Token": "dev-admin-token"}
+
 
 class _FailingProvider:
     def __init__(self, error: Exception) -> None:
@@ -27,7 +29,7 @@ def test_profile_summary_uses_stable_shape_for_request_errors(monkeypatch) -> No
                 retryable=True,
             )
         )
-        response = client.get("/api/profile/summary")
+        response = client.get("/api/profile/summary", headers=ADMIN_HEADERS)
 
     assert response.status_code == 503
     assert response.json() == {
@@ -53,7 +55,7 @@ def test_profile_summary_does_not_expose_raw_upstream_payloads(monkeypatch) -> N
                 retryable=True,
             )
         )
-        response = client.get("/api/profile/summary")
+        response = client.get("/api/profile/summary", headers=ADMIN_HEADERS)
 
     detail = response.json()["detail"]
     assert "payload" not in detail
@@ -66,7 +68,7 @@ def test_profile_summary_uses_stable_shape_for_auth_errors(monkeypatch) -> None:
         client.app.state.backpack_provider = _FailingProvider(
             BackpackAuthError("Signed Backpack requests require api_key and private_key.")
         )
-        response = client.get("/api/profile/summary")
+        response = client.get("/api/profile/summary", headers=ADMIN_HEADERS)
 
     assert response.status_code == 503
     assert response.json() == {
@@ -85,7 +87,7 @@ def test_profile_summary_uses_stable_shape_for_provider_errors(monkeypatch) -> N
         client.app.state.backpack_provider = _FailingProvider(
             ProviderError("Backpack returned an invalid account snapshot.")
         )
-        response = client.get("/api/profile/summary")
+        response = client.get("/api/profile/summary", headers=ADMIN_HEADERS)
 
     assert response.status_code == 502
     assert response.json() == {
@@ -102,7 +104,7 @@ def test_profile_summary_uses_stable_shape_when_provider_missing(monkeypatch) ->
     monkeypatch.setattr("app.main.settings.backpack_mode", "live")
     with TestClient(app) as client:
         client.app.state.backpack_provider = None
-        response = client.get("/api/profile/summary")
+        response = client.get("/api/profile/summary", headers=ADMIN_HEADERS)
 
     assert response.status_code == 503
     assert response.json() == {
