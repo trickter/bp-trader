@@ -11,21 +11,6 @@ from app import main as main_module
 from app.auth import require_admin_api_token
 
 
-@pytest.fixture
-def client(monkeypatch) -> TestClient:
-    """Create a test client with mocked settings."""
-    monkeypatch.setenv("APP_ENV", "test")
-    monkeypatch.setenv("ALLOW_INSECURE_DEV_DEFAULTS", "true")
-    monkeypatch.setenv("ADMIN_API_TOKEN", "test-admin-token")
-    monkeypatch.setenv("BACKPACK_MODE", "mock")
-
-    importlib = pytest.importorskip("importlib")
-    importlib.reload(config_module)
-    reloaded_main = importlib.reload(main_module)
-
-    return TestClient(reloaded_main.app)
-
-
 class TestRequireAdminApiToken:
     """Tests for require_admin_api_token function."""
 
@@ -80,19 +65,31 @@ class TestRequireAdminApiToken:
 class TestApiAuthentication:
     """Tests for API endpoint authentication."""
 
-    def test_api_endpoints_require_auth(self, client: TestClient) -> None:
-        """Test that API endpoints require authentication."""
-        # Try to access API endpoint without auth
-        response = client.get("/api/profile/summary")
-        assert response.status_code in (401, 403)
-
-    def test_api_endpoints_accept_valid_token(self, client: TestClient) -> None:
-        """Test that API endpoints accept valid token."""
-        headers = {"X-Admin-Token": "test-admin-token"}
-        response = client.get("/api/profile/summary", headers=headers)
-        assert response.status_code == 200
-
-    def test_healthz_does_not_require_auth(self, client: TestClient) -> None:
+    def test_healthz_does_not_require_auth(self) -> None:
         """Test that healthz endpoint does not require auth."""
-        response = client.get("/healthz")
-        assert response.status_code == 200
+        # Use existing app that has services initialized
+        from app.main import app
+
+        with TestClient(app) as client:
+            response = client.get("/healthz")
+            assert response.status_code == 200
+            assert response.json()["status"] == "ok"
+
+    def test_api_endpoints_require_auth(self) -> None:
+        """Test that API endpoints require authentication."""
+        from app.main import app
+
+        with TestClient(app) as client:
+            # Try to access API endpoint without auth
+            response = client.get("/api/profile/summary")
+            assert response.status_code in (401, 403)
+
+    def test_api_endpoints_accept_valid_token(self) -> None:
+        """Test that API endpoints accept valid token."""
+        from app.main import app
+        from app import config as cfg
+
+        with TestClient(app) as client:
+            headers = {"X-Admin-Token": cfg.settings.admin_api_token}
+            response = client.get("/api/profile/summary", headers=headers)
+            assert response.status_code == 200

@@ -21,15 +21,14 @@ from app.domain.shared.enums import PriceSource
 
 # Sample test data
 SAMPLE_PROFILE_SUMMARY = ProfileSummary(
-    id="test-account",
-    account_id="test-account",
-    equity=10000.0,
+    total_equity=10000.0,
     available_margin=8000.0,
-    realized_pnl_24h=150.0,
     unrealized_pnl=50.0,
-    total_pnl=200.0,
+    realized_pnl_24h=150.0,
     win_rate=0.65,
-    updated_at="2024-01-15T10:30:00Z",
+    risk_level="medium",
+    price_source=PriceSource.MARK,
+    synced_at="2024-01-15T10:30:00Z",
 )
 
 SAMPLE_ASSETS = [
@@ -37,13 +36,19 @@ SAMPLE_ASSETS = [
         asset="USDC",
         available=5000.0,
         locked=100.0,
-        usd_value=5100.0,
+        collateral_value=5100.0,
+        portfolio_weight=0.5,
+        change_24h=0.01,
+        price_source=PriceSource.MARK,
     ),
     AssetBalance(
         asset="SOL",
         available=10.0,
         locked=2.0,
-        usd_value=4900.0,
+        collateral_value=4900.0,
+        portfolio_weight=0.5,
+        change_24h=0.02,
+        price_source=PriceSource.MARK,
     ),
 ]
 
@@ -54,9 +59,11 @@ SAMPLE_POSITIONS = [
         quantity=10.0,
         entry_price=490.0,
         mark_price=495.0,
+        liquidation_price=None,
         unrealized_pnl=50.0,
         margin_used=1000.0,
         opened_at="2024-01-10T08:00:00Z",
+        price_source=PriceSource.MARK,
     ),
 ]
 
