@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CandlestickChart } from "../components/candlestick-chart";
@@ -247,6 +248,25 @@ describe("async admin pages", () => {
     vi.resetAllMocks();
     apiMock.exchangeAccounts.mockResolvedValue([]);
     apiMock.marketSymbols.mockResolvedValue(["BTC_USDC_PERP"]);
+    apiMock.riskControls.mockResolvedValue({
+      maxOpenPositions: 3,
+      maxConsecutiveLoss: 3,
+      maxSymbolExposure: 150,
+      stopLossPercent: 10,
+      maxTradeRisk: 10,
+      maxSlippagePercent: 0.4,
+      maxSpreadPercent: 0.3,
+      volatilityFilterPercent: 8,
+      maxPositionNotional: 300,
+      dailyLossLimit: 15,
+      maxLeverage: 3,
+      allowedSymbols: ["BTC_USDC_PERP"],
+      tradingWindowStart: "00:00",
+      tradingWindowEnd: "23:59",
+      killSwitchEnabled: false,
+      requireMarkPrice: true,
+      updatedAt: "2026-03-09T00:00:00Z",
+    });
     apiMock.agentContext.mockResolvedValue({
       mode: "admin",
       accountMode: "mock",
@@ -276,16 +296,92 @@ describe("async admin pages", () => {
           resolveStrategies = resolve;
         }),
     );
+    apiMock.marketSymbols.mockResolvedValue(["BTC_USDC_PERP"]);
+    apiMock.exchangeAccounts.mockResolvedValue([]);
+    apiMock.riskControls.mockResolvedValue({
+      maxOpenPositions: 3,
+      maxConsecutiveLoss: 3,
+      maxSymbolExposure: 150,
+      stopLossPercent: 10,
+      maxTradeRisk: 10,
+      maxSlippagePercent: 0.4,
+      maxSpreadPercent: 0.3,
+      volatilityFilterPercent: 8,
+      maxPositionNotional: 300,
+      dailyLossLimit: 15,
+      maxLeverage: 3,
+      allowedSymbols: ["BTC_USDC_PERP"],
+      tradingWindowStart: "00:00",
+      tradingWindowEnd: "23:59",
+      killSwitchEnabled: false,
+      requireMarkPrice: true,
+      updatedAt: "2026-03-09T00:00:00Z",
+    });
 
-    render(<StrategiesPage />);
+    render(
+      <MemoryRouter>
+        <StrategiesPage />
+      </MemoryRouter>,
+    );
 
     expect(document.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0);
 
     resolveStrategies([]);
 
     await waitFor(() =>
-      expect(screen.getByText("No strategies configured")).toBeInTheDocument(),
+      expect(screen.getByText(/\+?\s*New strategy/i)).toBeInTheDocument(),
     );
+  });
+
+  it("renders template presets and visual condition builder for strategies", async () => {
+    apiMock.strategies.mockResolvedValue([
+      {
+        id: "strategy-1",
+        name: "EMA Trend",
+        kind: "template",
+        description: "Trend following template",
+        market: "BTC_USDC_PERP",
+        accountId: "acct_001",
+        runtime: "paper",
+        status: "healthy",
+        lastBacktest: "",
+        sharpe: 1.8,
+        priceSource: "last",
+        parameters: {
+          templatePresetId: "ema_dual_trend",
+        },
+      },
+    ]);
+    apiMock.marketSymbols.mockResolvedValue(["BTC_USDC_PERP", "ETH_USDC_PERP"]);
+    apiMock.exchangeAccounts.mockResolvedValue([
+      {
+        id: "acct_001",
+        exchange: "backpack",
+        label: "backpack-primary",
+        marketType: "perp",
+        lastCredentialRotation: "2026-03-08T10:00:00Z",
+        status: "healthy",
+      },
+    ]);
+
+    render(
+      <MemoryRouter initialEntries={["/strategies?section=template_library"]}>
+        <StrategiesPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Create from template")).toBeInTheDocument();
+    expect(screen.getAllByText("EMA 双均线趋势策略").length).toBeGreaterThan(0);
+
+    render(
+      <MemoryRouter initialEntries={["/strategies?section=signal_logic"]}>
+        <StrategiesPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Long / entry conditions")).toBeInTheDocument();
+    expect(screen.getByText("Market filters")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Long entry")).toBeInTheDocument();
   });
 
   it("shows a real error state for market pulse fetch failures", async () => {

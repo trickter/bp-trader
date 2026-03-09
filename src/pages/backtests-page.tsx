@@ -11,7 +11,7 @@ import type { BacktestRequest, StrategySummary } from "../lib/types";
 import { formatCurrency, formatUnixDateTime, fromDatetimeLocalValue, toDatetimeLocalValue } from "../lib/utils";
 
 const fieldClassName =
-  "w-full appearance-none rounded-2xl border border-white/10 bg-slate-950/90 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-cyan-300/40";
+  "w-full appearance-none rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 outline-none transition focus:border-gray-900";
 
 const DEFAULT_END_TIME = Math.floor(Date.now() / 1000);
 const DEFAULT_START_TIME = DEFAULT_END_TIME - 7 * 24 * 60 * 60;
@@ -129,54 +129,51 @@ export function BacktestsPage() {
             description="Pick a strategy, choose the market and time window, then run the explicit POST create -> GET result flow."
           />
           <div className="grid gap-4">
-            <label className="grid gap-2 text-sm text-slate-300">
+            <label className="grid gap-1.5 text-xs font-medium text-gray-700">
               <span>Strategy</span>
               <select
                 className={fieldClassName}
-                style={{ colorScheme: "dark" }}
-                value={selectedStrategyId}
+                                value={selectedStrategyId}
                 onChange={(event) => handleStrategyChange(event.target.value)}
               >
                 {strategies.map((strategy) => (
-                  <option className="bg-slate-950 text-slate-100" key={strategy.id} value={strategy.id}>
+                  <option  key={strategy.id} value={strategy.id}>
                     {strategy.name} ({strategy.kind})
                   </option>
                 ))}
               </select>
             </label>
             <div className="grid gap-4 md:grid-cols-2">
-              <label className="grid gap-2 text-sm text-slate-300">
+              <label className="grid gap-1.5 text-xs font-medium text-gray-700">
                 <span>Symbol</span>
                 <select
                   className={fieldClassName}
-                  style={{ colorScheme: "dark" }}
-                  value={request.symbol}
+                                    value={request.symbol}
                   onChange={(event) => setRequest((current) => ({ ...current, symbol: event.target.value }))}
                 >
                   {symbols.map((symbol) => (
-                    <option className="bg-slate-950 text-slate-100" key={symbol} value={symbol}>
+                    <option  key={symbol} value={symbol}>
                       {symbol}
                     </option>
                   ))}
                 </select>
               </label>
-              <label className="grid gap-2 text-sm text-slate-300">
+              <label className="grid gap-1.5 text-xs font-medium text-gray-700">
                 <span>Interval</span>
                 <select
                   className={fieldClassName}
-                  style={{ colorScheme: "dark" }}
-                  value={request.interval}
+                                    value={request.interval}
                   onChange={(event) => setRequest((current) => ({ ...current, interval: event.target.value }))}
                 >
-                  <option className="bg-slate-950 text-slate-100" value="15m">15m</option>
-                  <option className="bg-slate-950 text-slate-100" value="1h">1h</option>
-                  <option className="bg-slate-950 text-slate-100" value="4h">4h</option>
-                  <option className="bg-slate-950 text-slate-100" value="1d">1d</option>
+                  <option  value="15m">15m</option>
+                  <option  value="1h">1h</option>
+                  <option  value="4h">4h</option>
+                  <option  value="1d">1d</option>
                 </select>
               </label>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <label className="grid gap-2 text-sm text-slate-300">
+              <label className="grid gap-1.5 text-xs font-medium text-gray-700">
                 <span>Start</span>
                 <input
                   className={fieldClassName}
@@ -187,7 +184,7 @@ export function BacktestsPage() {
                   }
                 />
               </label>
-              <label className="grid gap-2 text-sm text-slate-300">
+              <label className="grid gap-1.5 text-xs font-medium text-gray-700">
                 <span>End</span>
                 <input
                   className={fieldClassName}
@@ -200,12 +197,11 @@ export function BacktestsPage() {
               </label>
             </div>
             <div className="grid gap-4 md:grid-cols-3">
-              <label className="grid gap-2 text-sm text-slate-300">
+              <label className="grid gap-1.5 text-xs font-medium text-gray-700">
                 <span>Price source</span>
                 <select
                   className={fieldClassName}
-                  style={{ colorScheme: "dark" }}
-                  value={request.priceSource}
+                                    value={request.priceSource}
                   onChange={(event) =>
                     setRequest((current) => ({
                       ...current,
@@ -213,12 +209,12 @@ export function BacktestsPage() {
                     }))
                   }
                 >
-                  <option className="bg-slate-950 text-slate-100" value="last">last</option>
-                  <option className="bg-slate-950 text-slate-100" value="mark">mark</option>
-                  <option className="bg-slate-950 text-slate-100" value="index">index</option>
+                  <option  value="last">last</option>
+                  <option  value="mark">mark</option>
+                  <option  value="index">index</option>
                 </select>
               </label>
-              <label className="grid gap-2 text-sm text-slate-300">
+              <label className="grid gap-1.5 text-xs font-medium text-gray-700">
                 <span>Fee (bps)</span>
                 <input
                   className={fieldClassName}
@@ -228,7 +224,7 @@ export function BacktestsPage() {
                   onChange={(event) => setRequest((current) => ({ ...current, feeBps: Number(event.target.value) }))}
                 />
               </label>
-              <label className="grid gap-2 text-sm text-slate-300">
+              <label className="grid gap-1.5 text-xs font-medium text-gray-700">
                 <span>Slippage (bps)</span>
                 <input
                   className={fieldClassName}
@@ -245,7 +241,7 @@ export function BacktestsPage() {
               type="button"
               onClick={handleRun}
               disabled={!selectedStrategy || backtest.loading}
-              className="rounded-full bg-cyan-300 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-full bg-gray-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {backtest.loading ? "Running backtest..." : "Run backtest"}
             </button>
@@ -261,22 +257,22 @@ export function BacktestsPage() {
           {selectedStrategy ? (
             <div className="space-y-4">
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-1">
-                <div className="rounded-2xl border border-white/8 bg-white/5 p-4 text-sm text-slate-300">
-                  Kind: <span className="text-white">{selectedStrategy.kind}</span>
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5 text-xs text-gray-700">
+                  Kind: <span className="font-semibold text-gray-900">{selectedStrategy.kind}</span>
                 </div>
-                <div className="rounded-2xl border border-white/8 bg-white/5 p-4 text-sm text-slate-300">
-                  Runtime: <span className="text-white">{selectedStrategy.runtime}</span>
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5 text-xs text-gray-700">
+                  Runtime: <span className="font-semibold text-gray-900">{selectedStrategy.runtime}</span>
                 </div>
-                <div className="rounded-2xl border border-white/8 bg-white/5 p-4 text-sm text-slate-300">
-                  Default market: <span className="text-white">{selectedStrategy.market}</span>
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5 text-xs text-gray-700">
+                  Default market: <span className="font-semibold text-gray-900">{selectedStrategy.market}</span>
                 </div>
-                <div className="rounded-2xl border border-white/8 bg-white/5 p-4 text-sm text-slate-300">
-                  Price source: <span className="text-white">{selectedStrategy.priceSource.toUpperCase()}</span>
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5 text-xs text-gray-700">
+                  Price source: <span className="font-semibold text-gray-900">{selectedStrategy.priceSource.toUpperCase()}</span>
                 </div>
               </div>
-              <div className="rounded-[24px] border border-cyan-400/10 bg-[linear-gradient(180deg,rgba(34,211,238,0.08),rgba(15,23,42,0.35))] p-4">
-                <p className="text-[11px] uppercase tracking-[0.28em] text-cyan-100/60">Parameter snapshot</p>
-                <pre className="mt-3 overflow-x-auto text-xs leading-6 text-slate-200">
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-gray-400">Parameter snapshot</p>
+                <pre className="mt-2 overflow-x-auto text-xs leading-6 text-gray-700">
                   {JSON.stringify(selectedStrategy.parameters, null, 2)}
                 </pre>
               </div>
@@ -300,28 +296,28 @@ export function BacktestsPage() {
         <>
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             <Card>
-              <p className="text-[11px] uppercase tracking-[0.3em] text-slate-500">Return</p>
-              <p className="mt-3 text-3xl font-semibold text-white">{backtest.result.totalReturn.toFixed(2)}%</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400">Return</p>
+              <p className="mt-2 text-3xl font-bold text-gray-900">{backtest.result.totalReturn.toFixed(2)}%</p>
             </Card>
             <Card>
-              <p className="text-[11px] uppercase tracking-[0.3em] text-slate-500">Max drawdown</p>
-              <p className="mt-3 text-3xl font-semibold text-white">{backtest.result.maxDrawdown.toFixed(2)}%</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400">Max drawdown</p>
+              <p className="mt-2 text-3xl font-bold text-gray-900">{backtest.result.maxDrawdown.toFixed(2)}%</p>
             </Card>
             <Card>
-              <p className="text-[11px] uppercase tracking-[0.3em] text-slate-500">Sharpe</p>
-              <p className="mt-3 text-3xl font-semibold text-white">{backtest.result.sharpe.toFixed(2)}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400">Sharpe</p>
+              <p className="mt-2 text-3xl font-bold text-gray-900">{backtest.result.sharpe.toFixed(2)}</p>
             </Card>
             <Card>
-              <p className="text-[11px] uppercase tracking-[0.3em] text-slate-500">Lifecycle</p>
-              <p className="mt-3 text-xl font-semibold text-white">{backtest.run?.status ?? backtest.result.status}</p>
-              <p className="mt-2 text-sm text-slate-400">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400">Lifecycle</p>
+              <p className="mt-2 text-xl font-bold text-gray-900">{backtest.run?.status ?? backtest.result.status}</p>
+              <p className="mt-1 text-xs text-gray-500">
                 {backtest.run?.demoMode ? "demo-isolated request" : "provider-backed request"}
               </p>
             </Card>
             <Card>
-              <p className="text-[11px] uppercase tracking-[0.3em] text-slate-500">Trade count</p>
-              <p className="mt-3 text-3xl font-semibold text-white">{backtest.result.tradeMarkers.length}</p>
-              <p className="mt-2 text-sm text-slate-400">Lifecycle markers in current run</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400">Trade count</p>
+              <p className="mt-2 text-3xl font-bold text-gray-900">{backtest.result.tradeMarkers.length}</p>
+              <p className="mt-1 text-xs text-gray-500">Lifecycle markers in current run</p>
             </Card>
           </section>
 
@@ -334,28 +330,28 @@ export function BacktestsPage() {
                 title={backtest.result.strategyName}
                 description="This panel keeps the backtest envelope explicit while the chart stays dedicated to price and execution analysis."
               />
-              <div className="space-y-4 text-sm text-slate-300">
-                <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                  Run id: <span className="text-white">{backtest.run?.id ?? backtest.result.id}</span>
+              <div className="space-y-2 text-xs text-gray-700">
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5">
+                  Run id: <span className="font-semibold text-gray-900">{backtest.run?.id ?? backtest.result.id}</span>
                 </div>
-                <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                  Symbol: <span className="text-white">{backtest.result.symbol}</span>
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5">
+                  Symbol: <span className="font-semibold text-gray-900">{backtest.result.symbol}</span>
                 </div>
-                <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                  Interval: <span className="text-white">{backtest.result.interval}</span>
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5">
+                  Interval: <span className="font-semibold text-gray-900">{backtest.result.interval}</span>
                 </div>
-                <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                  Price source: <span className="text-white">{backtest.result.priceSource.toUpperCase()}</span>
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5">
+                  Price source: <span className="font-semibold text-gray-900">{backtest.result.priceSource.toUpperCase()}</span>
                 </div>
-                <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                  Exchange: <span className="text-white">{backtest.result.exchangeId || "unknown"}</span> /{" "}
-                  <span className="text-white">{backtest.result.marketType || "unknown"}</span>
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5">
+                  Exchange: <span className="font-semibold text-gray-900">{backtest.result.exchangeId || "unknown"}</span> /{" "}
+                  <span className="font-semibold text-gray-900">{backtest.result.marketType || "unknown"}</span>
                 </div>
-                <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                  Window: <span className="text-white">{formattedRunWindow}</span>
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5">
+                  Window: <span className="font-semibold text-gray-900">{formattedRunWindow}</span>
                 </div>
-                <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                  Result path: <span className="text-white break-all">{backtest.run?.resultPath ?? `/api/backtests/${backtest.result.id}`}</span>
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5">
+                  Result path: <span className="break-all font-semibold text-gray-900">{backtest.run?.resultPath ?? `/api/backtests/${backtest.result.id}`}</span>
                 </div>
               </div>
             </Card>
@@ -391,17 +387,17 @@ export function BacktestsPage() {
                 title="Run controls"
                 description="Fees, slippage, and window settings remain visible after the run so analysis stays reproducible."
               />
-              <div className="space-y-4 text-sm text-slate-300">
-                <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
+              <div className="space-y-2 text-xs text-gray-700">
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5">
                   Fees: {backtest.result.feeBps} bps, slippage: {backtest.result.slippageBps} bps
                 </div>
-                <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5">
                   Window: {formattedRunWindow}
                 </div>
-                <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5">
                   Markers: {backtest.result.tradeMarkers.length} · Win rate: {backtest.result.winRate.toFixed(1)}%
                 </div>
-                <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5">
                   Current request: {request.symbol} / {request.interval} / {request.priceSource.toUpperCase()}
                 </div>
               </div>

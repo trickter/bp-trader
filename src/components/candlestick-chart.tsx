@@ -197,22 +197,22 @@ export function CandlestickChart({ result }: { result: BacktestResult }) {
 
   if (visibleCandles.length === 0) {
     return (
-      <div className="overflow-hidden rounded-[28px] border border-cyan-400/10 bg-[radial-gradient(circle_at_top,rgba(55,189,248,0.08),transparent_34%),linear-gradient(180deg,rgba(4,11,30,0.94),rgba(5,11,24,1))] p-4">
+      <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
         <div className="mb-3 flex items-center justify-between">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.3em] text-cyan-200/50">Backtest tape</p>
-            <h3 className="text-lg font-semibold text-white">{result.strategyName || "Backtest result"}</h3>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400">Backtest tape</p>
+            <h3 className="text-lg font-semibold text-gray-900">{result.strategyName || "Backtest result"}</h3>
           </div>
-          <div className="text-right text-xs text-slate-400">
+          <div className="text-right text-xs text-gray-500">
             <p>Price source: {result.priceSource.toUpperCase()}</p>
             <p>0 lifecycle markers</p>
           </div>
         </div>
 
-        <div className="flex h-72 items-center justify-center rounded-[24px] border border-dashed border-white/10 bg-black/10 text-center">
+        <div className="flex h-72 items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50 text-center">
           <div>
-            <p className="text-base font-semibold text-white">No candles available</p>
-            <p className="mt-2 text-sm text-slate-400">
+            <p className="text-base font-semibold text-gray-900">No candles available</p>
+            <p className="mt-2 text-sm text-gray-500">
               The selected backtest returned zero bars, so trade markers cannot be projected.
             </p>
           </div>
@@ -466,30 +466,30 @@ export function CandlestickChart({ result }: { result: BacktestResult }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-[28px] border border-cyan-400/10 bg-[radial-gradient(circle_at_top,rgba(55,189,248,0.08),transparent_34%),linear-gradient(180deg,rgba(4,11,30,0.94),rgba(5,11,24,1))] p-4">
+    <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.3em] text-cyan-200/50">Backtest tape</p>
-          <h3 className="text-lg font-semibold text-white">{result.strategyName}</h3>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400">Backtest tape</p>
+          <h3 className="text-lg font-semibold text-gray-900">{result.strategyName}</h3>
+          <p className="mt-1 text-sm text-gray-500">
             {result.exchangeId || "unknown"} · {result.marketType || "unknown"} · {result.symbol} · {result.interval}
           </p>
         </div>
-        <div className="grid gap-2 text-right text-xs text-slate-400">
+        <div className="grid gap-1 text-right text-xs text-gray-500">
           <p>Backtest source: {result.priceSource.toUpperCase()}</p>
           <p>Chart source: {result.chartPriceSource.toUpperCase()}</p>
           <p>{visibleTradeMarkers.length} visible trade markers</p>
         </div>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-3">
+      <div className="mb-4 flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => setShowEquityOverlay((value) => !value)}
           className={`rounded-full border px-3 py-1.5 text-xs transition ${
             showEquityOverlay
-              ? "border-amber-300/40 bg-amber-300/15 text-amber-100"
-              : "border-white/10 bg-white/5 text-slate-300"
+              ? "border-amber-200 bg-amber-50 text-amber-700"
+              : "border-gray-200 bg-white text-gray-600 hover:border-gray-400"
           }`}
         >
           Equity overlay
@@ -499,8 +499,8 @@ export function CandlestickChart({ result }: { result: BacktestResult }) {
           onClick={() => setShowBenchmarkOverlay((value) => !value)}
           className={`rounded-full border px-3 py-1.5 text-xs transition ${
             showBenchmarkOverlay
-              ? "border-fuchsia-300/40 bg-fuchsia-300/15 text-fuchsia-100"
-              : "border-white/10 bg-white/5 text-slate-300"
+              ? "border-purple-200 bg-purple-50 text-purple-700"
+              : "border-gray-200 bg-white text-gray-600 hover:border-gray-400"
           }`}
         >
           Buy & hold benchmark
@@ -508,14 +508,14 @@ export function CandlestickChart({ result }: { result: BacktestResult }) {
         <button
           type="button"
           onClick={resetView}
-          className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-xs text-cyan-100 transition hover:bg-cyan-300/15"
+          className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-600 transition hover:border-gray-900 hover:text-gray-900"
         >
           Reset view
         </button>
       </div>
 
       {chartWarnings.length > 0 ? (
-        <div className="mb-4 rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+        <div className="mb-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-700">
           {chartWarnings.join(" ")}
         </div>
       ) : null}
@@ -525,7 +525,7 @@ export function CandlestickChart({ result }: { result: BacktestResult }) {
           ref={chartContainerRef}
           data-testid="candlestick-chart-surface"
           tabIndex={0}
-          className={`rounded-[24px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))] p-3 outline-none ${
+          className={`rounded-2xl border border-gray-100 bg-gray-50 p-3 outline-none ${
             isPanning ? "cursor-grabbing" : spacePanActive ? "cursor-grab" : selectionRange ? "cursor-col-resize" : "cursor-crosshair"
           }`}
           style={{
@@ -807,26 +807,26 @@ export function CandlestickChart({ result }: { result: BacktestResult }) {
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-xs text-slate-300">
-          Strategy end equity: <span className="text-white">{result.equityCurve.at(-1)?.equity?.toFixed(2) ?? "n/a"}</span>
+      <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-xs text-gray-500">
+          Strategy end equity: <span className="font-semibold text-gray-900">{result.equityCurve.at(-1)?.equity?.toFixed(2) ?? "n/a"}</span>
         </div>
-        <div className="rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-xs text-slate-300">
-          Benchmark end equity: <span className="text-white">{benchmarkCurve.at(-1)?.equity?.toFixed(2) ?? "n/a"}</span>
+        <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-xs text-gray-500">
+          Benchmark end equity: <span className="font-semibold text-gray-900">{benchmarkCurve.at(-1)?.equity?.toFixed(2) ?? "n/a"}</span>
         </div>
-        <div className="rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-xs text-slate-300">
+        <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-xs text-gray-500">
           Relative alpha:{" "}
-          <span className="text-white">
+          <span className="font-semibold text-gray-900">
             {result.equityCurve.length > 0 && benchmarkCurve.length > 0
               ? `${(result.equityCurve.at(-1)!.equity - benchmarkCurve.at(-1)!.equity).toFixed(2)}`
               : "n/a"}
           </span>
         </div>
-        <div className="rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-xs text-slate-300">
-          View: <span className="text-white">{zoomLevel.toFixed(1)}x / {visibleCandles.length} candles</span>
+        <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-xs text-gray-500">
+          View: <span className="font-semibold text-gray-900">{zoomLevel.toFixed(1)}x / {visibleCandles.length} candles</span>
         </div>
-        <div className="rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-xs text-slate-300 md:col-span-2 xl:col-span-4">
-          Interaction: <span className="text-white">Wheel to zoom. Hold Space and drag horizontally to pan. Shift + drag to box zoom. Double-click to reset.</span>
+        <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-xs text-gray-500 md:col-span-2 xl:col-span-4">
+          Interaction: <span className="text-gray-700">Wheel to zoom. Hold Space and drag horizontally to pan. Shift + drag to box zoom. Double-click to reset.</span>
         </div>
       </div>
     </div>

@@ -14,14 +14,14 @@ export function SectionState({
   return (
     <div
       className={cn(
-        "rounded-[24px] border p-6 text-sm",
+        "rounded-2xl border p-5 text-sm",
         tone === "error"
-          ? "border-rose-400/20 bg-rose-400/10 text-rose-100"
-          : "border-white/8 bg-white/5 text-slate-300",
+          ? "border-red-100 bg-red-50 text-red-700"
+          : "border-gray-100 bg-gray-50 text-gray-600",
       )}
     >
-      <p className="text-base font-semibold text-white">{title}</p>
-      <p className={cn("mt-2", tone === "error" ? "text-rose-100/80" : "text-slate-400")}>{detail}</p>
+      <p className={cn("text-base font-semibold", tone === "error" ? "text-red-700" : "text-gray-900")}>{title}</p>
+      <p className={cn("mt-2", tone === "error" ? "text-red-600" : "text-gray-500")}>{detail}</p>
     </div>
   );
 }
@@ -38,7 +38,7 @@ export function LoadingBlock({
       {Array.from({ length: rows }).map((_, index) => (
         <div
           key={index}
-          className="h-12 animate-pulse rounded-2xl border border-white/6 bg-white/5"
+          className="h-12 animate-pulse rounded-2xl border border-gray-100 bg-gray-100"
         />
       ))}
     </div>
@@ -51,7 +51,7 @@ export function MetricSkeletonGrid({ cards = 4 }: { cards?: number }) {
       {Array.from({ length: cards }).map((_, index) => (
         <div
           key={index}
-          className="h-36 animate-pulse rounded-[28px] border border-white/8 bg-white/5"
+          className="h-36 animate-pulse rounded-2xl border border-gray-100 bg-gray-100"
         />
       ))}
     </section>

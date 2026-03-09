@@ -10,10 +10,10 @@ export function StatusPill({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.24em]",
-        tone === "positive" && "bg-emerald-400/15 text-emerald-200",
-        tone === "negative" && "bg-rose-400/15 text-rose-200",
-        tone === "neutral" && "bg-white/8 text-slate-300",
+        "inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em]",
+        tone === "positive" && "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
+        tone === "negative" && "bg-red-50 text-red-600 ring-1 ring-red-200",
+        tone === "neutral" && "bg-gray-100 text-gray-600",
       )}
     >
       {children}

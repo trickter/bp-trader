@@ -7,7 +7,7 @@ import { api } from "../lib/api";
 import type { RiskControls } from "../lib/types";
 
 const fieldClassName =
-  "w-full appearance-none rounded-2xl border border-white/10 bg-slate-950/90 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-cyan-300/40";
+  "w-full appearance-none rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 outline-none transition focus:border-gray-900";
 
 const EMPTY_CONTROLS: RiskControls = {
   maxOpenPositions: 3,
@@ -124,15 +124,15 @@ export function RiskControlsPage() {
       />
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <div className="grid gap-4">
-          <div className="rounded-[24px] border border-white/8 bg-white/5 p-4">
+          <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-[11px] uppercase tracking-[0.3em] text-slate-500">Account level</p>
-              <p className="text-xs text-slate-400">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400">Account level</p>
+              <p className="text-xs text-gray-500">
                 {controls.maxPositionNotional}U notional / {controls.maxLeverage.toFixed(1)}x / {controls.dailyLossLimit}U daily loss
               </p>
             </div>
             <div className="mt-4 grid gap-4 md:grid-cols-3">
-              <label className="grid gap-2 text-sm text-slate-300">
+              <label className="grid gap-1.5 text-xs font-medium text-gray-700">
                 <span>Max position notional</span>
                 <input
                   className={fieldClassName}
@@ -144,7 +144,7 @@ export function RiskControlsPage() {
                   }
                 />
               </label>
-              <label className="grid gap-2 text-sm text-slate-300">
+              <label className="grid gap-1.5 text-xs font-medium text-gray-700">
                 <span>Daily loss limit</span>
                 <input
                   className={fieldClassName}
@@ -156,7 +156,7 @@ export function RiskControlsPage() {
                   }
                 />
               </label>
-              <label className="grid gap-2 text-sm text-slate-300">
+              <label className="grid gap-1.5 text-xs font-medium text-gray-700">
                 <span>Max leverage</span>
                 <input
                   className={fieldClassName}
@@ -172,15 +172,15 @@ export function RiskControlsPage() {
             </div>
           </div>
 
-          <div className="rounded-[24px] border border-white/8 bg-white/5 p-4">
+          <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-[11px] uppercase tracking-[0.3em] text-slate-500">Strategy level</p>
-              <p className="text-xs text-slate-400">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400">Strategy level</p>
+              <p className="text-xs text-gray-500">
                 {controls.maxOpenPositions} open / {controls.maxConsecutiveLoss} loss streak / {controls.maxSymbolExposure}U symbol cap
               </p>
             </div>
             <div className="mt-4 grid gap-4 md:grid-cols-3">
-              <label className="grid gap-2 text-sm text-slate-300">
+              <label className="grid gap-1.5 text-xs font-medium text-gray-700">
                 <span>Max open positions</span>
                 <input
                   className={fieldClassName}
@@ -192,7 +192,7 @@ export function RiskControlsPage() {
                   }
                 />
               </label>
-              <label className="grid gap-2 text-sm text-slate-300">
+              <label className="grid gap-1.5 text-xs font-medium text-gray-700">
                 <span>Max consecutive loss</span>
                 <input
                   className={fieldClassName}
@@ -204,7 +204,7 @@ export function RiskControlsPage() {
                   }
                 />
               </label>
-              <label className="grid gap-2 text-sm text-slate-300">
+              <label className="grid gap-1.5 text-xs font-medium text-gray-700">
                 <span>Max symbol exposure</span>
                 <input
                   className={fieldClassName}
@@ -219,15 +219,15 @@ export function RiskControlsPage() {
             </div>
           </div>
 
-          <div className="rounded-[24px] border border-white/8 bg-white/5 p-4">
+          <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-[11px] uppercase tracking-[0.3em] text-slate-500">Trade level</p>
-              <p className="text-xs text-slate-400">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400">Trade level</p>
+              <p className="text-xs text-gray-500">
                 {controls.stopLossPercent}% stop / {controls.maxTradeRisk}U risk / {controls.maxSlippagePercent}% slippage
               </p>
             </div>
             <div className="mt-4 grid gap-4 md:grid-cols-3">
-              <label className="grid gap-2 text-sm text-slate-300">
+              <label className="grid gap-1.5 text-xs font-medium text-gray-700">
                 <span>Stop loss (%)</span>
                 <input
                   className={fieldClassName}
@@ -240,7 +240,7 @@ export function RiskControlsPage() {
                   }
                 />
               </label>
-              <label className="grid gap-2 text-sm text-slate-300">
+              <label className="grid gap-1.5 text-xs font-medium text-gray-700">
                 <span>Max trade risk</span>
                 <input
                   className={fieldClassName}
@@ -253,7 +253,7 @@ export function RiskControlsPage() {
                   }
                 />
               </label>
-              <label className="grid gap-2 text-sm text-slate-300">
+              <label className="grid gap-1.5 text-xs font-medium text-gray-700">
                 <span>Max slippage (%)</span>
                 <input
                   className={fieldClassName}
@@ -269,15 +269,15 @@ export function RiskControlsPage() {
             </div>
           </div>
 
-          <div className="rounded-[24px] border border-white/8 bg-white/5 p-4">
+          <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-[11px] uppercase tracking-[0.3em] text-slate-500">Market level</p>
-              <p className="text-xs text-slate-400">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400">Market level</p>
+              <p className="text-xs text-gray-500">
                 {controls.maxSpreadPercent}% spread / {controls.volatilityFilterPercent}% volatility gate
               </p>
             </div>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <label className="grid gap-2 text-sm text-slate-300">
+              <label className="grid gap-1.5 text-xs font-medium text-gray-700">
                 <span>Max spread (%)</span>
                 <input
                   className={fieldClassName}
@@ -290,7 +290,7 @@ export function RiskControlsPage() {
                   }
                 />
               </label>
-              <label className="grid gap-2 text-sm text-slate-300">
+              <label className="grid gap-1.5 text-xs font-medium text-gray-700">
                 <span>Volatility filter (%)</span>
                 <input
                   className={fieldClassName}
@@ -307,7 +307,7 @@ export function RiskControlsPage() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <label className="grid gap-2 text-sm text-slate-300">
+            <label className="grid gap-1.5 text-xs font-medium text-gray-700">
               <span>Trading window start</span>
               <input
                 className={fieldClassName}
@@ -318,7 +318,7 @@ export function RiskControlsPage() {
                 }
               />
             </label>
-            <label className="grid gap-2 text-sm text-slate-300">
+            <label className="grid gap-1.5 text-xs font-medium text-gray-700">
               <span>Trading window end</span>
               <input
                 className={fieldClassName}
@@ -331,9 +331,10 @@ export function RiskControlsPage() {
             </label>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
-            <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200">
+            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 transition hover:border-gray-300">
               <input
                 type="checkbox"
+                className="accent-gray-900"
                 checked={controls.killSwitchEnabled}
                 onChange={(event) =>
                   setControls((current) => ({ ...current, killSwitchEnabled: event.target.checked }))
@@ -341,9 +342,10 @@ export function RiskControlsPage() {
               />
               Kill switch enabled
             </label>
-            <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200">
+            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 transition hover:border-gray-300">
               <input
                 type="checkbox"
+                className="accent-gray-900"
                 checked={controls.requireMarkPrice}
                 onChange={(event) =>
                   setControls((current) => ({ ...current, requireMarkPrice: event.target.checked }))
@@ -359,7 +361,7 @@ export function RiskControlsPage() {
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className="rounded-full bg-rose-300 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-rose-200 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-full bg-gray-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? "Saving..." : "Save controls"}
             </button>
@@ -370,18 +372,18 @@ export function RiskControlsPage() {
                 setMessage(null);
                 setError(null);
               }}
-              className="rounded-full border border-white/12 px-4 py-2 text-sm text-slate-200 transition hover:border-white/20"
+              className="rounded-full border border-gray-200 px-5 py-2 text-sm text-gray-600 transition hover:border-gray-900 hover:text-gray-900"
             >
               Reset
             </button>
-            <div className="flex items-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300">
+            <div className="flex items-center rounded-full border border-gray-100 bg-gray-50 px-4 py-2 text-sm text-gray-500">
               {hasPendingChanges ? "Unsaved changes" : "Saved values loaded"}
             </div>
           </div>
         </div>
 
         <div className="space-y-4">
-          <Card className="bg-white/5">
+          <Card>
             <SectionTitle
               eyebrow="Allowlist"
               title="Tradable symbols"
@@ -391,10 +393,11 @@ export function RiskControlsPage() {
               {symbols.map((symbol) => (
                 <label
                   key={symbol}
-                  className="flex items-center gap-3 rounded-2xl border border-white/8 bg-black/10 px-4 py-3 text-sm text-slate-200"
+                  className="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3 text-sm text-gray-700 transition hover:border-gray-200"
                 >
                   <input
                     type="checkbox"
+                    className="accent-gray-900"
                     checked={controls.allowedSymbols.includes(symbol)}
                     onChange={() => toggleSymbol(symbol)}
                   />
@@ -403,36 +406,36 @@ export function RiskControlsPage() {
               ))}
             </div>
           </Card>
-          <Card className="bg-white/5">
+          <Card>
             <SectionTitle
               eyebrow="Audit"
               title="Current envelope"
               description="The effective risk values below mirror the currently loaded controls, so changes are visible immediately after save."
             />
-            <div className="space-y-3 text-sm text-slate-300">
-              <div className="rounded-2xl border border-cyan-400/10 bg-cyan-400/5 p-4">
+            <div className="space-y-2 text-xs text-gray-500">
+              <div className="rounded-xl border border-blue-100 bg-blue-50 p-3.5">
                 Save state:{" "}
-                <span className="text-white">
+                <span className="font-semibold text-blue-700">
                   {hasPendingChanges ? "Editing values differ from last saved state" : "Inputs match last saved state"}
                 </span>
               </div>
-              <div className="rounded-2xl border border-white/8 bg-black/10 p-4">
-                Account: <span className="text-white">{controls.maxPositionNotional}U max notional / {controls.maxLeverage.toFixed(1)}x / {controls.dailyLossLimit}U daily loss</span>
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5">
+                Account: <span className="font-semibold text-gray-900">{controls.maxPositionNotional}U max notional / {controls.maxLeverage.toFixed(1)}x / {controls.dailyLossLimit}U daily loss</span>
               </div>
-              <div className="rounded-2xl border border-white/8 bg-black/10 p-4">
-                Strategy: <span className="text-white">{controls.maxOpenPositions} open / {controls.maxConsecutiveLoss} loss streak / {controls.maxSymbolExposure}U per symbol</span>
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5">
+                Strategy: <span className="font-semibold text-gray-900">{controls.maxOpenPositions} open / {controls.maxConsecutiveLoss} loss streak / {controls.maxSymbolExposure}U per symbol</span>
               </div>
-              <div className="rounded-2xl border border-white/8 bg-black/10 p-4">
-                Trade: <span className="text-white">{controls.stopLossPercent}% stop / {controls.maxTradeRisk}U max risk / {controls.maxSlippagePercent}% slippage</span>
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5">
+                Trade: <span className="font-semibold text-gray-900">{controls.stopLossPercent}% stop / {controls.maxTradeRisk}U max risk / {controls.maxSlippagePercent}% slippage</span>
               </div>
-              <div className="rounded-2xl border border-white/8 bg-black/10 p-4">
-                Market: <span className="text-white">{controls.maxSpreadPercent}% spread / {controls.volatilityFilterPercent}% volatility filter</span>
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5">
+                Market: <span className="font-semibold text-gray-900">{controls.maxSpreadPercent}% spread / {controls.volatilityFilterPercent}% volatility filter</span>
               </div>
-              <div className="rounded-2xl border border-white/8 bg-black/10 p-4">
-                Allowed symbols: <span className="text-white">{controls.allowedSymbols.join(", ") || "None"}</span>
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5">
+                Allowed symbols: <span className="font-semibold text-gray-900">{controls.allowedSymbols.join(", ") || "None"}</span>
               </div>
-              <div className="rounded-2xl border border-white/8 bg-black/10 p-4">
-                Updated at: <span className="text-white">{controls.updatedAt || "Pending first save"}</span>
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5">
+                Updated at: <span className="font-semibold text-gray-900">{controls.updatedAt || "Pending first save"}</span>
               </div>
             </div>
           </Card>

@@ -20,9 +20,9 @@ export function ExecutionPage() {
           title="Order lifecycle"
           description="Live trading is disabled, but the system already tracks the state machine needed for future live rollout."
         />
-        <div className="grid gap-3">
+        <div className="grid gap-2">
           {states.map((state) => (
-            <div key={state} className="rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-sm text-slate-300">
+            <div key={state} className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-700">
               {state}
             </div>
           ))}
@@ -34,15 +34,15 @@ export function ExecutionPage() {
           title="Command rules"
           description="Order updates are keyed by client_order_id, not inferred from exchange order formats."
         />
-        <div className="space-y-4 text-sm text-slate-300">
-          <div className="flex items-center justify-between rounded-2xl border border-white/8 bg-white/5 p-4">
+        <div className="space-y-3 text-sm text-gray-600">
+          <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 p-4">
             <span>Mode</span>
             <StatusPill>paper-ready</StatusPill>
           </div>
-          <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
+          <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
             REST submission and WS orderUpdate association share explicit identifiers and timestamps.
           </div>
-          <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
+          <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
             Retry rules stay opt-in and are disallowed for non-idempotent transitions.
           </div>
         </div>

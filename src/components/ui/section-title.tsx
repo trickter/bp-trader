@@ -8,14 +8,14 @@ export function SectionTitle({
   description?: string;
 }) {
   return (
-    <div className="mb-4 flex flex-col gap-1">
+    <div className="mb-5 flex flex-col gap-1">
       {eyebrow ? (
-        <span className="text-[11px] uppercase tracking-[0.38em] text-cyan-200/50">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400">
           {eyebrow}
         </span>
       ) : null}
-      <h2 className="text-xl font-semibold text-slate-50">{title}</h2>
-      {description ? <p className="text-sm text-slate-400">{description}</p> : null}
+      <h2 className="text-base font-semibold text-gray-900">{title}</h2>
+      {description ? <p className="text-sm text-gray-500">{description}</p> : null}
     </div>
   );
 }

@@ -29,16 +29,16 @@ export function AlertsPage() {
           detail="Critical backtests, data freshness faults, and credential events will surface here."
         />
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {alerts.data.map((alert) => (
             <div
               key={alert.id}
-              className="rounded-[24px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] p-5"
+              className="rounded-2xl border border-gray-100 bg-gray-50 p-4"
             >
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-lg font-semibold text-white">{alert.title}</p>
-                  <p className="mt-1 text-sm text-slate-400">{alert.detail}</p>
+                  <p className="text-sm font-semibold text-gray-900">{alert.title}</p>
+                  <p className="mt-1 text-sm text-gray-500">{alert.detail}</p>
                 </div>
                 <StatusPill
                   tone={
@@ -52,7 +52,7 @@ export function AlertsPage() {
                   {alert.level}
                 </StatusPill>
               </div>
-              <p className="mt-3 text-xs uppercase tracking-[0.24em] text-slate-500">{alert.occurredAt}</p>
+              <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">{alert.occurredAt}</p>
             </div>
           ))}
         </div>

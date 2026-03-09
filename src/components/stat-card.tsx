@@ -19,12 +19,12 @@ export function StatCard({
       <div className="flex h-full flex-col justify-between gap-4">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.3em] text-slate-500">{label}</p>
-            <p className="mt-3 text-3xl font-semibold text-white">{value}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400">{label}</p>
+            <p className="mt-3 text-3xl font-semibold text-gray-900">{value}</p>
           </div>
           {badge ? <StatusPill tone={tone}>{badge}</StatusPill> : null}
         </div>
-        <p className="text-sm text-slate-400">{helper}</p>
+        <p className="text-sm text-gray-500">{helper}</p>
       </div>
     </Card>
   );

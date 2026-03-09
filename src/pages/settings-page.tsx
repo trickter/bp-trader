@@ -71,10 +71,10 @@ export function SettingsPage() {
             title="Security guarantees"
             description="Backpack ED25519 material is treated as high-value and short-lived in memory."
           />
-          <ul className="space-y-3 text-sm text-slate-300">
-            <li>Application-layer encryption before PostgreSQL persistence.</li>
-            <li>Audit log records who changed a credential, never the cleartext itself.</li>
-            <li>Workers receive short-lived decrypted material only for active jobs.</li>
+          <ul className="space-y-2 text-sm text-gray-600">
+            <li className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">Application-layer encryption before PostgreSQL persistence.</li>
+            <li className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">Audit log records who changed a credential, never the cleartext itself.</li>
+            <li className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">Workers receive short-lived decrypted material only for active jobs.</li>
           </ul>
         </Card>
         <Card>
@@ -92,15 +92,15 @@ export function SettingsPage() {
               tone="error"
             />
           ) : (
-            <div className="space-y-4 text-sm text-slate-300">
-              <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                Account mode: <span className="text-white">{agentContext.data.accountMode}</span>
+            <div className="space-y-2 text-sm text-gray-500">
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5">
+                Account mode: <span className="font-semibold text-gray-900">{agentContext.data.accountMode}</span>
               </div>
-              <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                Capabilities: <span className="text-white">{agentContext.data.availableCapabilities.join(", ")}</span>
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5">
+                Capabilities: <span className="font-semibold text-gray-900">{agentContext.data.availableCapabilities.join(", ")}</span>
               </div>
-              <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                Vocabulary: <span className="text-white">{agentContext.data.domainVocabulary.join(", ")}</span>
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5">
+                Vocabulary: <span className="font-semibold text-gray-900">{agentContext.data.domainVocabulary.join(", ")}</span>
               </div>
             </div>
           )}

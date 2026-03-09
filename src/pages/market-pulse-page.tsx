@@ -8,7 +8,7 @@ import { api } from "../lib/api";
 import type { MarketMetric } from "../lib/types";
 
 const fieldClassName =
-  "w-full appearance-none rounded-2xl border border-white/10 bg-slate-950/90 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-cyan-300/40";
+  "w-full appearance-none rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 outline-none transition focus:border-gray-900";
 
 function normalizeFundingMetric(metric: MarketMetric) {
   if (metric.label !== "Funding rate") {
@@ -103,12 +103,11 @@ export function MarketPulsePage() {
         <div className="w-full max-w-xs">
           <select
             className={fieldClassName}
-            style={{ colorScheme: "dark" }}
             value={selectedSymbol}
             onChange={(event) => setSelectedSymbol(event.target.value)}
           >
             {symbols.map((symbol) => (
-              <option className="bg-slate-950 text-slate-100" key={symbol} value={symbol}>
+              <option key={symbol} value={symbol}>
                 {symbol}
               </option>
             ))}
@@ -129,13 +128,13 @@ export function MarketPulsePage() {
           {metrics.map((metric) => (
             <div
               key={`${selectedSymbol}-${metric.label}`}
-              className="rounded-[24px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] p-5"
+              className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
             >
               <div className="mb-5 flex items-center justify-between gap-3">
-                <p className="text-sm text-slate-300">{metric.label}</p>
+                <p className="text-sm text-gray-600">{metric.label}</p>
                 <StatusPill tone={metric.tone}>{metric.freshness}</StatusPill>
               </div>
-              <p className="text-3xl font-semibold text-white">{metric.value}</p>
+              <p className="text-3xl font-semibold text-gray-900">{metric.value}</p>
             </div>
           ))}
         </div>
