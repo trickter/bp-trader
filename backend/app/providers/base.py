@@ -3,16 +3,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Generic, Mapping, Protocol, TypeVar
 
-from ..schemas import (
+from ..domain.shared.enums import PriceSource
+from ..schema_read_models import (
     AccountEvent,
     AssetBalance,
     ExchangeAccount,
-    KlineResponse,
     MarketMetric,
     Position,
-    PriceSource,
     ProfileSummary,
 )
+from ..schema_requests import KlineResponse
 
 T = TypeVar("T")
 

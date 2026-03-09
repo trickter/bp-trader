@@ -6,6 +6,8 @@ from fastapi.testclient import TestClient
 
 import app.config as config_module
 import app.main as main_module
+from app.mock_data import ASSET_BALANCES, POSITIONS, PROFILE_SUMMARY
+from app.providers.base import AccountSnapshot, NormalizedList, NormalizedRecord
 from app.schemas import PriceSource
 
 
@@ -70,7 +72,7 @@ def test_agent_context_exposes_capability_discovery(monkeypatch):
 
 def test_live_profile_routes_share_snapshot_cache(monkeypatch):
     client, reloaded_main = create_client(monkeypatch)
-    stub_provider = SnapshotCountingProvider(reloaded_main)
+    stub_provider = SnapshotCountingProvider()
 
     with client:
         reloaded_main.settings.backpack_mode = "live"
@@ -89,10 +91,17 @@ def test_live_profile_routes_share_snapshot_cache(monkeypatch):
 
 
 class SnapshotCountingProvider:
-    def __init__(self, reloaded_main) -> None:
+    def __init__(self) -> None:
         self.snapshot_calls = 0
-        self._reloaded_main = reloaded_main
 
     async def fetch_account_snapshot(self, price_source: PriceSource):
         self.snapshot_calls += 1
-        return self._reloaded_main._build_mock_profile_snapshot()
+        return AccountSnapshot(
+            summary=NormalizedRecord(data=PROFILE_SUMMARY, raw_payload=PROFILE_SUMMARY.model_dump(by_alias=True)),
+            assets=NormalizedList(
+                items=[NormalizedRecord(data=item, raw_payload=item.model_dump(by_alias=True)) for item in ASSET_BALANCES]
+            ),
+            positions=NormalizedList(
+                items=[NormalizedRecord(data=item, raw_payload=item.model_dump(by_alias=True)) for item in POSITIONS]
+            ),
+        )

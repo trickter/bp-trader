@@ -27,6 +27,32 @@ from .base import (
     NormalizedRecord,
     ProviderError,
 )
+from .backpack_helpers import (
+    coerce_timestamp as _coerce_timestamp,
+    float_or_none as _float_or_none,
+    floatify as _floatify,
+    format_rate_percent as _format_rate_percent,
+    infer_side as _infer_side,
+    map_event_type as _map_event_type,
+    normalize_symbol as _normalize_symbol,
+    pick as _pick,
+    pick_latest_object as _pick_latest_object,
+    require_float as _require_float,
+    stringify as _stringify,
+    stringify_number as _stringify_number,
+    unwrap_list as _unwrap_list,
+    unwrap_object as _unwrap_object,
+)
+from .backpack_mapper import (
+    normalize_assets,
+    normalize_candle,
+    normalize_capital_rows,
+    normalize_collateral_payload,
+    normalize_fill_event,
+    normalize_funding_event,
+    normalize_positions,
+    normalize_summary,
+)
 
 
 @dataclass(slots=True)
@@ -54,11 +80,7 @@ class BackpackProvider:
 
         account = _unwrap_object(account_payload, context="backpack account")
         capital_rows = self._normalize_capital_rows(capital_payload)
-        collateral_object = _unwrap_object(collateral_payload, context="backpack collateral")
-        collateral_rows = _unwrap_list(
-            _pick(collateral_object, "collateral", "items", "assets", "balances"),
-            context="backpack collateral rows",
-        )
+        collateral_object, collateral_rows = self._normalize_collateral_payload(collateral_payload)
         position_rows = _unwrap_list(positions_payload, context="backpack positions")
 
         assets = self._normalize_assets(
@@ -120,31 +142,34 @@ class BackpackProvider:
         now_seconds = int(datetime.now(tz=UTC).timestamp())
         recent_start = max(now_seconds - 3600, 0)
 
-        (
-            ticker_payload,
-            open_interest_payload,
-            funding_payload,
-            mark_klines,
-            index_klines,
-        ) = await asyncio.gather(
-            self.client.get_ticker(symbol),
+        fetches = await asyncio.gather(
+            self._fetch_ticker_payload(symbol),
             self.client.get_open_interest(symbol),
             self.client.get_funding_rates(symbol=symbol),
-            self.fetch_klines(
-                symbol=symbol,
-                interval=kline_interval,
-                start_time=recent_start,
-                end_time=now_seconds,
-                price_source=PriceSource.MARK,
-            ),
-            self.fetch_klines(
-                symbol=symbol,
-                interval=kline_interval,
-                start_time=recent_start,
-                end_time=now_seconds,
-                price_source=PriceSource.INDEX,
+            *(
+                [
+                    self.fetch_klines(
+                        symbol=symbol,
+                        interval=kline_interval,
+                        start_time=recent_start,
+                        end_time=now_seconds,
+                        price_source=PriceSource.MARK,
+                    ),
+                    self.fetch_klines(
+                        symbol=symbol,
+                        interval=kline_interval,
+                        start_time=recent_start,
+                        end_time=now_seconds,
+                        price_source=PriceSource.INDEX,
+                    ),
+                ]
+                if include_klines
+                else []
             ),
         )
+        ticker_payload, open_interest_payload, funding_payload = fetches[:3]
+        mark_klines = fetches[3] if include_klines else None
+        index_klines = fetches[4] if include_klines else None
         klines = None
         if include_klines:
             if interval is None or start_time is None or end_time is None:
@@ -160,8 +185,12 @@ class BackpackProvider:
         ticker = _pick_latest_object(ticker_payload, context=f"backpack ticker {symbol}")
         open_interest = _pick_latest_object(open_interest_payload, context=f"backpack open interest {symbol}")
         funding = _pick_latest_object(funding_payload, context=f"backpack funding rate {symbol}")
-        mark_price = _latest_candle_close(mark_klines, context=f"backpack mark klines {symbol}")
-        index_price = _latest_candle_close(index_klines, context=f"backpack index klines {symbol}")
+        mark_price = _float_or_none(_pick(ticker, "markPrice", "mark_price")) or (
+            _latest_candle_close(mark_klines, context=f"backpack mark klines {symbol}") if mark_klines else None
+        )
+        index_price = _float_or_none(_pick(ticker, "indexPrice", "index_price")) or (
+            _latest_candle_close(index_klines, context=f"backpack index klines {symbol}") if index_klines else None
+        )
 
         metrics = [
             NormalizedRecord(
@@ -194,18 +223,18 @@ class BackpackProvider:
             NormalizedRecord(
                 data=MarketMetric(
                     label="Mark price",
-                    value=_stringify_number(mark_price),
+                    value=_stringify_number(mark_price or 0.0),
                     freshness="exchange snapshot",
                 ),
-                raw_payload=mark_klines.raw_payload,
+                raw_payload=mark_klines.raw_payload if mark_klines else ticker,
             ),
             NormalizedRecord(
                 data=MarketMetric(
                     label="Index price",
-                    value=_stringify_number(index_price),
+                    value=_stringify_number(index_price or 0.0),
                     freshness="exchange snapshot",
                 ),
-                raw_payload=index_klines.raw_payload,
+                raw_payload=index_klines.raw_payload if index_klines else ticker,
             ),
             NormalizedRecord(
                 data=MarketMetric(
@@ -297,91 +326,36 @@ class BackpackProvider:
     def _normalize_summary(
         self,
         account: Mapping[str, Any],
-        collateral: Mapping[str, Any],
         collateral_rows: list[Mapping[str, Any]],
         positions: NormalizedList[Position],
         price_source: PriceSource,
+        collateral: Mapping[str, Any] | None = None,
     ) -> NormalizedRecord[ProfileSummary]:
-        total_equity = _sum_values(
-            collateral_rows,
-            ("collateralValue", "collateral_value", "usdValue", "usd_value", "value"),
-        )
-        if total_equity == 0:
-            total_equity = _float_or_none(
-                _pick(
-                    collateral,
-                    "assetsValue",
-                    "assets_value",
-                    "accountValue",
-                    "account_value",
-                    "equity",
-                )
-            ) or _float_or_none(
-                _pick(account, "equity", "accountValue", "account_value")
-            ) or 0.0
-        available_margin = _float_or_none(
-            _pick(
-                collateral,
-                "availableCollateral",
-                "available_collateral",
-                "availableMargin",
-                "available_margin",
-            ),
-        )
-        if available_margin is None:
-            available_margin = (
-                _float_or_none(
-                    _pick(
-                        account,
-                        "availableMargin",
-                        "available_margin",
-                        "availableCollateral",
-                        "available_collateral",
-                    )
-                )
-                or _sum_values(
-                    collateral_rows,
-                    ("availableValue", "available_value", "availableUsdValue", "available_usd_value"),
-                )
-            )
-        unrealized_pnl = sum(item.data.unrealized_pnl for item in positions.items)
-        realized_pnl_24h = _floatify(
-            _pick(account, "realizedPnl24h", "realized_pnl_24h", "pnl24h", "dailyPnl", "daily_pnl"),
-        )
-        win_rate = _floatify(_pick(account, "winRate", "win_rate"))
-        synced_at = (
-            _coerce_timestamp(_pick(account, "updatedAt", "updated_at", "timestamp"))
-            or _coerce_timestamp(_pick(collateral, "updatedAt", "updated_at", "timestamp"))
-            or datetime.now(tz=UTC).isoformat().replace("+00:00", "Z")
-        )
-        risk_level = _infer_risk_level(total_equity=total_equity, margin=available_margin)
-        summary = ProfileSummary(
-            total_equity=total_equity,
-            available_margin=available_margin,
-            unrealized_pnl=unrealized_pnl,
-            realized_pnl_24h=realized_pnl_24h,
-            win_rate=win_rate,
-            risk_level=risk_level,
+        return normalize_summary(
+            account=account,
+            collateral_rows=collateral_rows,
+            positions=positions,
             price_source=price_source,
-            synced_at=synced_at,
+            collateral=collateral,
         )
-        raw_payload = {
-            "account": account,
-            "collateralSummary": collateral,
-            "collateral": collateral_rows,
-            "positions": [item.raw_payload for item in positions.items],
-        }
-        return NormalizedRecord(data=summary, raw_payload=raw_payload)
+
+    def _normalize_collateral_payload(
+        self,
+        collateral_payload: Any,
+    ) -> tuple[Mapping[str, Any], list[Mapping[str, Any]]]:
+        return normalize_collateral_payload(collateral_payload)
+
+    async def _fetch_ticker_payload(self, symbol: str):
+        get_ticker = getattr(self.client, "get_ticker", None)
+        if callable(get_ticker):
+            return await get_ticker(symbol)
+        get_market = getattr(self.client, "get_market", None)
+        if callable(get_market):
+            return await get_market(symbol)
+        raise AttributeError("Backpack REST client must provide get_ticker() or get_market().")
 
     def _normalize_capital_rows(self, capital_payload: Any) -> list[Mapping[str, Any]]:
-        if isinstance(capital_payload, Mapping):
-            rows: list[Mapping[str, Any]] = []
-            for asset, values in capital_payload.items():
-                if not isinstance(values, Mapping):
-                    raise ProviderError("backpack capital payload contained a non-object asset row")
-                rows.append({"asset": asset, **values})
-            return rows
-        return _unwrap_list(capital_payload, context="backpack capital")
+        return normalize_capital_rows(capital_payload)
 
     def _unwrap_history_or_empty(
         self,
@@ -403,262 +377,36 @@ class BackpackProvider:
         collateral_rows: list[Mapping[str, Any]],
         price_source: PriceSource,
     ) -> NormalizedList[AssetBalance]:
-        warnings: list[str] = []
-        by_asset: dict[str, dict[str, Any]] = {}
-        for row in capital_rows:
-            asset = _require_string(row, "asset", "symbol", "currency", context="backpack capital asset")
-            by_asset.setdefault(asset, {}).update({"capital": row})
-        for row in collateral_rows:
-            asset = _require_string(
-                row,
-                "asset",
-                "symbol",
-                "currency",
-                context="backpack collateral asset",
-            )
-            by_asset.setdefault(asset, {}).update({"collateral": row})
-
-        total_value = 0.0
-        partial_values: dict[str, float] = {}
-        for asset, payloads in by_asset.items():
-            if payloads.get("collateral"):
-                value = _require_float(
-                    payloads["collateral"],
-                    "collateralValue",
-                    "collateral_value",
-                    "usdValue",
-                    "usd_value",
-                    "value",
-                    context=f"backpack collateral asset {asset}",
-                )
-            else:
-                value = 0.0
-            partial_values[asset] = value
-            total_value += value
-
-        items: list[NormalizedRecord[AssetBalance]] = []
-        for asset, payloads in by_asset.items():
-            capital = payloads.get("capital", {})
-            collateral = payloads.get("collateral", {})
-            available = _floatify(_pick(capital, "available", "free", "availableBalance", "available_balance"))
-            locked = _floatify(_pick(capital, "locked", "hold", "lockedBalance", "locked_balance"))
-            collateral_value = partial_values[asset]
-            weight = collateral_value / total_value * 100 if total_value else 0.0
-            balance = AssetBalance(
-                asset=asset,
-                available=available,
-                locked=locked,
-                collateral_value=collateral_value,
-                portfolio_weight=weight,
-                change_24h=0.0,
-                price_source=price_source,
-            )
-            if not capital:
-                warnings.append(f"missing capital payload for asset {asset}")
-            items.append(
-                NormalizedRecord(
-                    data=balance,
-                    raw_payload={"capital": capital, "collateral": collateral},
-                )
-            )
-        items.sort(key=lambda item: item.data.collateral_value, reverse=True)
-        return NormalizedList(items=items, warnings=warnings)
+        return normalize_assets(
+            capital_rows=capital_rows,
+            collateral_rows=collateral_rows,
+            price_source=price_source,
+        )
 
     def _normalize_positions(
         self,
         rows: list[Mapping[str, Any]],
         price_source: PriceSource,
     ) -> NormalizedList[Position]:
-        items: list[NormalizedRecord[Position]] = []
-        warnings: list[str] = []
-        for row in rows:
-            symbol = _require_symbol(row, context="backpack position")
-            quantity = abs(
-                _require_float(
-                    row,
-                    "quantity",
-                    "qty",
-                    "positionQty",
-                    "netQuantity",
-                    "position_size",
-                    "size",
-                    context=f"backpack position {symbol}",
-                )
-            )
-            side = _infer_side(row, quantity)
-            mark_price = _require_float(
-                row,
-                "markPrice",
-                "mark_price",
-                "mark",
-                context=f"backpack position {symbol}",
-            )
-            entry_price = _require_float(
-                row,
-                "entryPrice",
-                "entry_price",
-                "avgEntryPrice",
-                "average_entry_price",
-                context=f"backpack position {symbol}",
-            )
-            position = Position(
-                symbol=symbol,
-                side=side,
-                quantity=quantity,
-                entry_price=entry_price,
-                mark_price=mark_price,
-                liquidation_price=_float_or_none(
-                    _pick(row, "liquidationPrice", "liquidation_price", "liqPrice", "liquidation")
-                ),
-                unrealized_pnl=_floatify(_pick(row, "unrealizedPnl", "unrealized_pnl", "uPnl", "pnl")),
-                margin_used=_floatify(_pick(row, "marginUsed", "margin_used", "initialMargin", "margin")),
-                opened_at=_coerce_timestamp(_pick(row, "openedAt", "opened_at", "createdAt", "created_at")) or "",
-                price_source=price_source,
-                exchange_extra={
-                    "nativeSymbol": _stringify(_pick(row, "symbol", "market", "product"), fallback=symbol),
-                    "rawSide": _stringify(_pick(row, "side"), fallback=side),
-                    "positionId": _stringify(_pick(row, "id", "positionId", "position_id"), fallback=""),
-                },
-            )
-            items.append(NormalizedRecord(data=position, raw_payload=row))
-        items.sort(key=lambda item: item.data.unrealized_pnl, reverse=True)
-        return NormalizedList(items=items, warnings=warnings)
+        return normalize_positions(rows, price_source)
 
     def _normalize_fill_event(
         self,
         payload: Mapping[str, Any],
     ) -> tuple[AccountEvent, list[str]]:
-        warnings: list[str] = []
-        raw_type = _require_string(
-            payload,
-            "fillType",
-            "fill_type",
-            "eventType",
-            "event_type",
-            "type",
-            context="backpack fill",
-        ).lower()
-        event_type = _map_event_type(raw_type)
-        origin = _map_origin(_stringify(_pick(payload, "source", "origin"), fallback="system"))
-        amount = _float_or_none(_pick(payload, "quantity", "qty", "size", "amount"))
-        if amount == 0 and event_type == EventType.FEE_CHARGE:
-            amount = None
-        if amount is None and event_type == EventType.FEE_CHARGE:
-            amount = -_require_float(payload, "fee", "feeAmount", "fee_amount", context="backpack fill")
-        if amount is None:
-            raise ProviderError("backpack fill missing required field: quantity/qty/size/amount")
-        asset = _require_string(
-            payload,
-            "asset",
-            "baseAsset",
-            "base_asset",
-            "feeAsset",
-            "fee_asset",
-            context="backpack fill",
-        )
-        occurred_at = _require_timestamp(
-            payload,
-            "timestamp",
-            "time",
-            "createdAt",
-            "created_at",
-            context="backpack fill",
-        )
-        event = AccountEvent(
-            id=_require_string(payload, "id", "fillId", "fill_id", context="backpack fill"),
-            event_type=event_type,
-            origin=origin,
-            asset=asset,
-            amount=amount,
-            pnl_effect=_floatify(_pick(payload, "realizedPnl", "realized_pnl", "pnlEffect", "pnl_effect")),
-            position_effect=_describe_position_effect(payload, fallback="Fill event"),
-            occurred_at=occurred_at,
-        )
-        return event, warnings
+        return normalize_fill_event(payload)
 
     def _normalize_funding_event(
         self,
         payload: Mapping[str, Any],
     ) -> tuple[AccountEvent, list[str]]:
-        warnings: list[str] = []
-        occurred_at = _require_timestamp(
-            payload,
-            "timestamp",
-            "time",
-            "settledAt",
-            "settled_at",
-            context="backpack funding",
-        )
-        amount = _require_float(
-            payload,
-            "amount",
-            "payment",
-            "fundingPayment",
-            "funding_payment",
-            context="backpack funding",
-        )
-        symbol = _require_symbol(payload, context="backpack funding")
-        event = AccountEvent(
-            id=_require_string(payload, "id", "fundingId", "funding_id", context="backpack funding"),
-            event_type=EventType.FUNDING_SETTLEMENT,
-            origin=EventOrigin.SYSTEM,
-            asset=_require_string(payload, "asset", "currency", context="backpack funding"),
-            amount=amount,
-            pnl_effect=amount,
-            position_effect=f"Funding settlement on {symbol}",
-            occurred_at=occurred_at,
-        )
-        return event, warnings
+        return normalize_funding_event(payload)
 
     def _normalize_candle(
         self,
         payload: Mapping[str, Any],
     ) -> tuple[Candle, list[str]]:
-        warnings: list[str] = []
-        timestamp = _require_timestamp(
-            payload,
-            "timestamp",
-            "time",
-            "t",
-            "start",
-            "end",
-            "startTime",
-            "start_time",
-            context="backpack kline",
-        )
-        candle = Candle(
-            timestamp=timestamp,
-            open=_require_float(payload, "open", "o", context="backpack kline"),
-            high=_require_float(payload, "high", "h", context="backpack kline"),
-            low=_require_float(payload, "low", "l", context="backpack kline"),
-            close=_require_float(payload, "close", "c", context="backpack kline"),
-            volume=_require_float(payload, "volume", "v", context="backpack kline"),
-        )
-        return candle, warnings
-
-
-def _unwrap_object(payload: Any, *, context: str = "payload") -> Mapping[str, Any]:
-    if isinstance(payload, Mapping):
-        for key in ("data", "result"):
-            nested = payload.get(key)
-            if isinstance(nested, Mapping):
-                return nested
-            if isinstance(nested, list):
-                return _coerce_single_mapping(nested, context=f"{context}.{key}")
-        return payload
-    if isinstance(payload, list):
-        return _coerce_single_mapping(payload, context=context)
-    raise ProviderError(f"{context} expected an object payload")
-
-
-def _pick_latest_object(payload: Any, *, context: str) -> Mapping[str, Any]:
-    if isinstance(payload, list):
-        return _coerce_single_mapping(payload[:1], context=context)
-    if isinstance(payload, Mapping):
-        nested = payload.get("data")
-        if isinstance(nested, list):
-            return _coerce_single_mapping(nested[:1], context=f"{context}.data")
-    return _unwrap_object(payload, context=context)
+        return normalize_candle(payload)
 
 
 def _latest_candle_close(payload: NormalizedRecord[KlineResponse], *, context: str) -> float:
@@ -666,235 +414,3 @@ def _latest_candle_close(payload: NormalizedRecord[KlineResponse], *, context: s
     if not candles:
         raise ProviderError(f"{context} expected at least one candle")
     return candles[-1].close
-
-
-def _unwrap_list(payload: Any, *, context: str = "payload") -> list[Mapping[str, Any]]:
-    if isinstance(payload, list):
-        return _coerce_mapping_list(payload, context=context)
-    if isinstance(payload, Mapping):
-        for key in ("items", "rows", "results", "data", "result"):
-            nested = payload.get(key)
-            if isinstance(nested, list):
-                return _coerce_mapping_list(nested, context=f"{context}.{key}")
-            if nested is not None:
-                raise ProviderError(f"{context}.{key} expected a list payload")
-        raise ProviderError(f"{context} expected a list container")
-    raise ProviderError(f"{context} expected a list payload")
-
-
-def _coerce_single_mapping(payload: list[Any], *, context: str) -> Mapping[str, Any]:
-    items = _coerce_mapping_list(payload, context=context)
-    if len(items) != 1:
-        raise ProviderError(f"{context} expected a single object but received {len(items)} items")
-    return items[0]
-
-
-def _coerce_mapping_list(payload: list[Any], *, context: str) -> list[Mapping[str, Any]]:
-    invalid_items = [index for index, item in enumerate(payload) if not isinstance(item, Mapping)]
-    if invalid_items:
-        joined = ", ".join(str(index) for index in invalid_items[:3])
-        raise ProviderError(f"{context} contained non-object entries at indexes {joined}")
-    return list(payload)
-
-
-def _pick(payload: Mapping[str, Any], *keys: str) -> Any:
-    for key in keys:
-        if key in payload and payload[key] is not None:
-            return payload[key]
-    return None
-
-
-def _floatify(value: Any) -> float:
-    if value in (None, "", False):
-        return 0.0
-    if isinstance(value, bool):
-        return float(value)
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return 0.0
-
-
-def _float_or_none(value: Any) -> float | None:
-    if value in (None, "", False):
-        return None
-    if isinstance(value, bool):
-        return None
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def _abs_float(value: Any) -> float:
-    return abs(_floatify(value))
-
-
-def _stringify(value: Any, fallback: str = "") -> str:
-    if value is None:
-        return fallback
-    text = str(value).strip()
-    return text or fallback
-
-
-def _stringify_number(value: Any, fallback: str = "") -> str:
-    if value in (None, ""):
-        return fallback
-    if isinstance(value, (int, float)):
-        return str(value)
-    return _stringify(value, fallback=fallback)
-
-
-def _format_rate_percent(value: float) -> str:
-    return f"{value * 100:+.3f}%"
-
-
-def _normalize_symbol(payload: Mapping[str, Any]) -> str:
-    return _stringify(
-        _pick(payload, "symbol", "market", "product", "productId", "instrument", "name"),
-        fallback="UNKNOWN",
-    )
-
-
-def _require_symbol(payload: Mapping[str, Any], *, context: str) -> str:
-    symbol = _normalize_symbol(payload)
-    if symbol == "UNKNOWN":
-        raise ProviderError(f"{context} missing required field: symbol/market/product")
-    return symbol
-
-
-def _require_string(payload: Mapping[str, Any], *keys: str, context: str) -> str:
-    value = _pick(payload, *keys)
-    if value is None:
-        joined = "/".join(keys)
-        raise ProviderError(f"{context} missing required field: {joined}")
-    text = _stringify(value)
-    if not text:
-        joined = "/".join(keys)
-        raise ProviderError(f"{context} missing required field: {joined}")
-    return text
-
-
-def _require_float(payload: Mapping[str, Any], *keys: str, context: str) -> float:
-    value = _pick(payload, *keys)
-    number = _float_or_none(value)
-    if number is None:
-        joined = "/".join(keys)
-        raise ProviderError(f"{context} missing required numeric field: {joined}")
-    return number
-
-
-def _require_timestamp(payload: Mapping[str, Any], *keys: str, context: str) -> str:
-    value = _pick(payload, *keys)
-    timestamp = _coerce_timestamp(value)
-    if timestamp is None:
-        joined = "/".join(keys)
-        raise ProviderError(f"{context} missing required timestamp field: {joined}")
-    return timestamp
-
-
-def _infer_side(payload: Mapping[str, Any], quantity: float) -> str:
-    raw_side = _stringify(_pick(payload, "side"), fallback="").lower()
-    if raw_side in {"long", "short"}:
-        return raw_side
-    signed_qty = _floatify(_pick(payload, "netQuantity", "net_quantity", "quantity", "qty", "size"))
-    if signed_qty < 0:
-        return "short"
-    if signed_qty > 0:
-        return "long"
-    return "long" if quantity >= 0 else "short"
-
-
-def _coerce_timestamp(value: Any) -> str | None:
-    if value in (None, ""):
-        return None
-    if isinstance(value, str):
-        stripped = value.strip()
-        if not stripped:
-            return None
-        if stripped.endswith("Z"):
-            return stripped
-        if stripped.isdigit():
-            value = int(stripped)
-        else:
-            try:
-                parsed = datetime.fromisoformat(stripped.replace("Z", "+00:00"))
-                if parsed.tzinfo is None:
-                    parsed = parsed.replace(tzinfo=UTC)
-                return parsed.astimezone(UTC).isoformat().replace("+00:00", "Z")
-            except ValueError:
-                return None
-    if isinstance(value, (int, float)):
-        number = float(value)
-        if number > 1_000_000_000_000_000:
-            number /= 1_000_000
-        elif number > 1_000_000_000_000:
-            number /= 1_000
-        elif number > 10_000_000_000:
-            number /= 1_000
-        return datetime.fromtimestamp(number, tz=UTC).isoformat().replace("+00:00", "Z")
-    return None
-
-
-def _sum_values(rows: list[Mapping[str, Any]], keys: tuple[str, ...]) -> float:
-    total = 0.0
-    for row in rows:
-        total += _floatify(_pick(row, *keys))
-    return total
-
-
-def _map_event_type(raw_type: str) -> EventType:
-    normalized = raw_type.lower()
-    if "liquid" in normalized:
-        return EventType.LIQUIDATION
-    if "adl" in normalized:
-        return EventType.ADL
-    if "conversion" in normalized or "collateral" in normalized:
-        return EventType.COLLATERAL_CONVERSION
-    if "funding" in normalized:
-        return EventType.FUNDING_SETTLEMENT
-    if "fee" in normalized:
-        return EventType.FEE_CHARGE
-    if "deposit" in normalized:
-        return EventType.DEPOSIT
-    if "withdraw" in normalized:
-        return EventType.WITHDRAWAL
-    if "manual" in normalized:
-        return EventType.MANUAL_ADJUSTMENT
-    if "trade" in normalized or "fill" in normalized:
-        return EventType.TRADE_FILL
-    raise ProviderError(f"backpack fill has unsupported event type: {raw_type}")
-
-
-def _map_origin(raw_origin: str) -> EventOrigin:
-    normalized = raw_origin.lower()
-    if "strategy" in normalized or "algo" in normalized:
-        return EventOrigin.STRATEGY
-    if "manual" in normalized or "user" in normalized:
-        return EventOrigin.MANUAL
-    if "risk" in normalized or "liquid" in normalized or "adl" in normalized:
-        return EventOrigin.RISK
-    return EventOrigin.SYSTEM
-
-
-def _describe_position_effect(payload: Mapping[str, Any], fallback: str) -> str:
-    symbol = _normalize_symbol(payload)
-    side = _stringify(_pick(payload, "side"), fallback="").lower()
-    quantity = _stringify_number(_pick(payload, "quantity", "qty", "size"), fallback="")
-    if symbol != "UNKNOWN" and quantity:
-        descriptor = f"{side} {quantity}".strip()
-        return f"{fallback} on {symbol} {descriptor}".strip()
-    if symbol != "UNKNOWN":
-        return f"{fallback} on {symbol}"
-    return fallback
-
-
-def _infer_risk_level(total_equity: float, margin: float) -> str:
-    if total_equity <= 0:
-        return "unknown"
-    usage = 1 - (margin / total_equity if total_equity else 0)
-    if usage >= 0.75:
-        return "elevated"
-    if usage >= 0.45:
-        return "managed"
-    return "disciplined"

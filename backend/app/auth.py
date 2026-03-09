@@ -4,7 +4,7 @@ from typing import Annotated
 
 from fastapi import Header, HTTPException, status
 
-from .config import settings
+from . import config
 
 
 async def require_admin_api_token(
@@ -16,7 +16,7 @@ async def require_admin_api_token(
             detail="Missing X-Admin-Token header.",
         )
 
-    if x_admin_token != settings.admin_api_token:
+    if x_admin_token != config.settings.admin_api_token:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid admin API token.",

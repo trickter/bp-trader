@@ -243,7 +243,7 @@ class BackpackClient:
             raise BackpackRequestError(
                 "Backpack request could not reach the provider.",
                 code="backpack_transport_error",
-                status_code=502,
+                suggested_http_status=502,
                 retryable=True,
             ) from exc
 
@@ -251,7 +251,7 @@ class BackpackClient:
             raise BackpackRequestError(
                 "Backpack request was rejected by the provider.",
                 code="backpack_upstream_error",
-                status_code=response.status_code,
+                suggested_http_status=response.status_code,
                 upstream_status=response.status_code,
                 retryable=response.status_code >= 500,
             )
