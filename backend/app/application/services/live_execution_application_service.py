@@ -673,8 +673,43 @@ class LiveExecutionApplicationService:
         strategy: Strategy,
         current: LiveStrategyExecution | None = None,
     ) -> LiveStrategyExecution:
-        readiness = self._readiness_checks(strategy)
         parameters = dict(strategy.parameters)
+        confirmed_at = _param_value(parameters, "liveConfirmedAt", "live_confirmed_at", None)
+        if not confirmed_at and current is not None:
+            confirmed_at = current.confirmed_at
+        readiness = self._readiness_checks(strategy)
+        if confirmed_at and "Live trading has not been explicitly confirmed." in readiness:
+            readiness = [item for item in readiness if item != "Live trading has not been explicitly confirmed."]
+        execution_weight = None
+        if "executionWeight" in parameters or "execution_weight" in parameters:
+            execution_weight = max(
+                _float_param(
+                    parameters,
+                    "executionWeight",
+                    _float_param(parameters, "execution_weight", 1.0),
+                ),
+                0.1,
+            )
+        elif current is not None:
+            execution_weight = current.execution_weight
+        else:
+            execution_weight = 1.0
+
+        poll_interval_seconds = None
+        if "pollIntervalSeconds" in parameters or "poll_interval_seconds" in parameters:
+            poll_interval_seconds = max(
+                _int_param(
+                    parameters,
+                    "pollIntervalSeconds",
+                    _int_param(parameters, "poll_interval_seconds", _interval_seconds(_string_param(parameters, "timeframe", "1h"))),
+                ),
+                60,
+            )
+        elif current is not None:
+            poll_interval_seconds = current.poll_interval_seconds
+        else:
+            poll_interval_seconds = max(_interval_seconds(_string_param(parameters, "timeframe", "1h")), 60)
+
         return LiveStrategyExecution(
             strategy_id=strategy.id,
             strategy_name=strategy.name,
@@ -685,23 +720,9 @@ class LiveExecutionApplicationService:
             runtime_status=current.runtime_status if current else strategy.runtime,
             live_enabled=_bool_param(parameters, "liveEnabled", _bool_param(parameters, "live_enabled", False)),
             is_whitelisted=_bool_param(parameters, "liveEnabled", _bool_param(parameters, "live_enabled", False)),
-            execution_weight=max(
-                _float_param(
-                    parameters,
-                    "executionWeight",
-                    _float_param(parameters, "execution_weight", 1.0),
-                ),
-                0.1,
-            ),
-            poll_interval_seconds=max(
-                _int_param(
-                    parameters,
-                    "pollIntervalSeconds",
-                    _int_param(parameters, "poll_interval_seconds", _interval_seconds(_string_param(parameters, "timeframe", "1h"))),
-                ),
-                60,
-            ),
-            confirmed_at=str(_param_value(parameters, "liveConfirmedAt", "live_confirmed_at", "")) or None,
+            execution_weight=execution_weight,
+            poll_interval_seconds=poll_interval_seconds,
+            confirmed_at=str(confirmed_at) if confirmed_at not in (None, "") else None,
             last_cycle_at=current.last_cycle_at if current else None,
             last_signal=current.last_signal if current else None,
             last_error=current.last_error if current else None,

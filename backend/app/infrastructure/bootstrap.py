@@ -17,6 +17,7 @@ from ..schemas import PriceSource
 from .gateways.operator_gateway import OperatorGateway
 from .gateways.execution_gateway import BackpackExecutionGateway
 from .repositories.in_memory import InMemoryBacktestRunRepository, InMemoryExecutionRuntimeRepository, InMemoryRiskControlsRepository, InMemoryStrategyRepository
+from .repositories.postgres_execution import PostgresExecutionRuntimeRepository
 from .state import RuntimeState
 
 
@@ -35,7 +36,7 @@ def build_services(app: FastAPI) -> ServiceContainer:
     strategy_repository = InMemoryStrategyRepository(app.state.strategy_registry)
     backtest_repository = InMemoryBacktestRunRepository(app.state.backtest_runs)
     risk_repository = InMemoryRiskControlsRepository(runtime_state, RISK_CONTROLS)
-    execution_repository = InMemoryExecutionRuntimeRepository(runtime_state)
+    execution_repository = _build_execution_repository(runtime_state, settings.database_url)
     operator_gateway = OperatorGateway(
         settings_obj=settings,
         default_symbol=settings.backpack_default_symbol,
@@ -85,6 +86,13 @@ def build_services(app: FastAPI) -> ServiceContainer:
 class _BacktestAcceptanceFactory:
     def build(self, **kwargs):
         return build_backtest_acceptance(**kwargs)
+
+
+def _build_execution_repository(runtime_state: RuntimeState, database_url: str):
+    try:
+        return PostgresExecutionRuntimeRepository(database_url=database_url, state=runtime_state)
+    except Exception:
+        return InMemoryExecutionRuntimeRepository(runtime_state)
 
 
 @asynccontextmanager

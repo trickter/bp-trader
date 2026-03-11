@@ -292,3 +292,27 @@ CREATE INDEX IF NOT EXISTS idx_positions_account_symbol ON positions(exchange_ac
 CREATE INDEX IF NOT EXISTS idx_account_events_account_time ON account_events(exchange_account_id, occurred_at DESC);
 CREATE INDEX IF NOT EXISTS idx_backtest_runs_strategy_created ON backtest_runs(strategy_version_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_execution_orders_status ON execution_orders(status);
+
+CREATE TABLE IF NOT EXISTS app_execution_runtime_state (
+  singleton_id SMALLINT PRIMARY KEY DEFAULT 1,
+  payload JSONB NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS app_live_strategy_states (
+  strategy_id TEXT PRIMARY KEY,
+  payload JSONB NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS app_execution_orders_log (
+  id TEXT PRIMARY KEY,
+  payload JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS app_execution_events_log (
+  id TEXT PRIMARY KEY,
+  payload JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

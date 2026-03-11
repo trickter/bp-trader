@@ -802,6 +802,44 @@ export function StrategiesPage() {
     }
   }
 
+  async function flattenSelectedStrategy() {
+    if (!selectedStrategyId) {
+      return;
+    }
+    setLiveActionPending(true);
+    try {
+      await api.flattenLiveStrategy(selectedStrategyId, {
+        confirmed: true,
+        reason: "manual flatten from strategies page",
+      });
+      await refreshExecutionSurfaces();
+      setSaveMessage("Manual flatten submitted.");
+    } catch (error) {
+      setSaveMessage(error instanceof Error ? error.message : "Manual flatten failed");
+    } finally {
+      setLiveActionPending(false);
+    }
+  }
+
+  async function disableAndFlattenSelectedStrategy() {
+    if (!selectedStrategyId) {
+      return;
+    }
+    setLiveActionPending(true);
+    try {
+      await api.disableAndFlattenLiveStrategy(selectedStrategyId, {
+        confirmed: true,
+        reason: "disable and flatten from strategies page",
+      });
+      await refreshExecutionSurfaces();
+      setSaveMessage("Strategy disabled and flatten order submitted.");
+    } catch (error) {
+      setSaveMessage(error instanceof Error ? error.message : "Disable and flatten failed");
+    } finally {
+      setLiveActionPending(false);
+    }
+  }
+
   const publishChecklist = buildPublishChecklist({
     hasRiskBinding: Boolean(riskControls),
     hasBacktestVersion: Boolean(selectedStrategy?.lastBacktest),
@@ -1375,6 +1413,24 @@ export function StrategiesPage() {
                     className="rounded-lg border border-gray-200 px-3 py-2 text-[11px] font-semibold text-gray-700 transition hover:border-gray-900 hover:text-gray-900 disabled:cursor-not-allowed disabled:text-gray-300"
                   >
                     Disable
+                  </button>
+                </div>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void flattenSelectedStrategy()}
+                    disabled={!selectedStrategyId || liveActionPending}
+                    className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-[11px] font-semibold text-gray-700 transition hover:border-gray-900 hover:text-gray-900 disabled:cursor-not-allowed disabled:text-gray-300"
+                  >
+                    {liveActionPending ? "Working..." : "Flatten"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void disableAndFlattenSelectedStrategy()}
+                    disabled={!selectedStrategyId || liveActionPending}
+                    className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-[11px] font-semibold text-gray-700 transition hover:border-gray-900 hover:text-gray-900 disabled:cursor-not-allowed disabled:text-gray-300"
+                  >
+                    Disable & Flatten
                   </button>
                 </div>
               </div>
