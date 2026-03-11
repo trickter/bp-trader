@@ -102,17 +102,25 @@ export function ProfilePage() {
               getRowKey={(item) => item.asset}
               columns={[
                 { key: "asset", label: "Asset", render: (item) => item.asset },
-                { key: "available", label: "Available", render: (item) => item.available.toLocaleString() },
-                { key: "locked", label: "Locked", render: (item) => item.locked.toLocaleString() },
+                {
+                  key: "available",
+                  label: "Available",
+                  render: (item) => <span className="financial-data">{item.available.toLocaleString()}</span>,
+                },
+                {
+                  key: "locked",
+                  label: "Locked",
+                  render: (item) => <span className="financial-data">{item.locked.toLocaleString()}</span>,
+                },
                 {
                   key: "value",
                   label: "Collateral value",
-                  render: (item) => formatCurrency(item.collateralValue),
+                  render: (item) => <span className="financial-data">{formatCurrency(item.collateralValue)}</span>,
                 },
                 {
                   key: "weight",
                   label: "Weight",
-                  render: (item) => formatPercent(item.portfolioWeight),
+                  render: (item) => <span className="financial-data">{formatPercent(item.portfolioWeight)}</span>,
                 },
               ]}
             />
@@ -153,11 +161,11 @@ export function ProfilePage() {
                     </StatusPill>
                   ),
                 },
-                { key: "qty", label: "Qty", render: (item) => item.quantity.toFixed(3) },
-                { key: "entry", label: "Entry", render: (item) => formatCurrency(item.entryPrice) },
-                { key: "mark", label: "Mark", render: (item) => formatCurrency(item.markPrice) },
-                { key: "pnl", label: "PnL", render: (item) => formatCurrency(item.unrealizedPnl) },
-                { key: "margin", label: "Margin", render: (item) => formatCurrency(item.marginUsed) },
+                { key: "qty", label: "Qty", render: (item) => <span className="financial-data">{item.quantity.toFixed(3)}</span> },
+                { key: "entry", label: "Entry", render: (item) => <span className="financial-data">{formatCurrency(item.entryPrice)}</span> },
+                { key: "mark", label: "Mark", render: (item) => <span className="financial-data">{formatCurrency(item.markPrice)}</span> },
+                { key: "pnl", label: "PnL", render: (item) => <span className="financial-data">{formatCurrency(item.unrealizedPnl)}</span> },
+                { key: "margin", label: "Margin", render: (item) => <span className="financial-data">{formatCurrency(item.marginUsed)}</span> },
               ]}
             />
           )}
@@ -191,10 +199,10 @@ export function ProfilePage() {
               { key: "type", label: "Event type", render: (item) => item.eventType },
               { key: "origin", label: "Origin", render: (item) => item.origin },
               { key: "asset", label: "Asset", render: (item) => item.asset },
-              { key: "amount", label: "Amount", render: (item) => item.amount.toLocaleString() },
-              { key: "pnl", label: "PnL effect", render: (item) => formatCurrency(item.pnlEffect) },
+              { key: "amount", label: "Amount", render: (item) => <span className="financial-data">{item.amount.toLocaleString()}</span> },
+              { key: "pnl", label: "PnL effect", render: (item) => <span className="financial-data">{formatCurrency(item.pnlEffect)}</span> },
               { key: "position", label: "Position effect", render: (item) => item.positionEffect },
-              { key: "time", label: "Occurred", render: (item) => item.occurredAt },
+              { key: "time", label: "Occurred", render: (item) => <span className="financial-data text-xs">{item.occurredAt}</span> },
             ]}
           />
         )}

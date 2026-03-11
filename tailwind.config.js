@@ -20,8 +20,10 @@ export default {
         neon: "0 0 0 1px rgba(64, 213, 255, 0.18), 0 0 24px rgba(64, 213, 255, 0.08)"
       },
       fontFamily: {
-        display: ["Georgia", "Cambria", "\"Times New Roman\"", "serif"],
-        body: ["\"IBM Plex Sans\"", "\"Segoe UI\"", "sans-serif"]
+        sans: ["Inter", "\"Segoe UI\"", "sans-serif"],
+        body: ["Inter", "\"Segoe UI\"", "sans-serif"],
+        display: ["Inter", "\"Segoe UI\"", "sans-serif"],
+        mono: ["\"JetBrains Mono\"", "\"SFMono-Regular\"", "monospace"]
       },
       backgroundImage: {
         grid: "linear-gradient(rgba(144, 182, 255, 0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(144, 182, 255, 0.07) 1px, transparent 1px)"

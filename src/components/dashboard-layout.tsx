@@ -24,8 +24,8 @@ export function DashboardLayout({ onLogout }: DashboardLayoutProps) {
         {/* Sidebar */}
         <aside className="hidden w-[220px] shrink-0 border-r border-gray-100 bg-white lg:flex lg:flex-col">
           <div className="border-b border-gray-100 px-5 py-5">
-            <p className="text-sm font-bold tracking-tight text-gray-900">Trader Console</p>
-            <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.3em] text-gray-400">
+            <p className="font-sans text-sm font-bold tracking-tight text-gray-900">Trader Console</p>
+            <p className="ui-kicker mt-0.5 text-[9px] font-semibold text-gray-400">
               Backpack Quant Stack
             </p>
           </div>
@@ -49,7 +49,7 @@ export function DashboardLayout({ onLogout }: DashboardLayoutProps) {
 
           <div className="border-t border-gray-100 p-4">
             <div className="rounded-xl bg-emerald-50 px-3 py-3 ring-1 ring-emerald-100">
-              <p className="text-[9px] font-semibold uppercase tracking-[0.25em] text-emerald-600">
+              <p className="ui-kicker text-[9px] font-semibold text-emerald-600">
                 Live posture
               </p>
               <p className="mt-1 text-xs text-emerald-700">
@@ -63,11 +63,11 @@ export function DashboardLayout({ onLogout }: DashboardLayoutProps) {
         <main className="flex min-h-screen flex-1 flex-col">
           <header className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-100 bg-white px-6 py-3.5">
             <div>
-              <h1 className="text-base font-bold tracking-tight text-gray-900">Portfolio Matrix</h1>
+              <h1 className="font-sans text-base font-bold tracking-tight text-gray-900">Portfolio Matrix</h1>
               <p className="text-xs text-gray-400">Admin-only operating surface</p>
             </div>
             <div className="flex items-center gap-2.5">
-              <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.22em] text-emerald-700">
+              <div className="ui-kicker rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[9px] font-semibold text-emerald-700">
                 Live feed staged
               </div>
               <div className="grid h-8 w-8 place-items-center rounded-full bg-gray-100 text-[11px] font-semibold text-gray-700">

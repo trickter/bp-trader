@@ -296,27 +296,27 @@ export function BacktestsPage() {
         <>
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             <Card>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400">Return</p>
-              <p className="mt-2 text-3xl font-bold text-gray-900">{backtest.result.totalReturn.toFixed(2)}%</p>
+              <p className="ui-kicker text-[10px] font-semibold text-gray-400">Return</p>
+              <p className="financial-data mt-2 text-3xl font-bold tracking-[-0.04em] text-gray-900">{backtest.result.totalReturn.toFixed(2)}%</p>
             </Card>
             <Card>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400">Max drawdown</p>
-              <p className="mt-2 text-3xl font-bold text-gray-900">{backtest.result.maxDrawdown.toFixed(2)}%</p>
+              <p className="ui-kicker text-[10px] font-semibold text-gray-400">Max drawdown</p>
+              <p className="financial-data mt-2 text-3xl font-bold tracking-[-0.04em] text-gray-900">{backtest.result.maxDrawdown.toFixed(2)}%</p>
             </Card>
             <Card>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400">Sharpe</p>
-              <p className="mt-2 text-3xl font-bold text-gray-900">{backtest.result.sharpe.toFixed(2)}</p>
+              <p className="ui-kicker text-[10px] font-semibold text-gray-400">Sharpe</p>
+              <p className="financial-data mt-2 text-3xl font-bold tracking-[-0.04em] text-gray-900">{backtest.result.sharpe.toFixed(2)}</p>
             </Card>
             <Card>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400">Lifecycle</p>
+              <p className="ui-kicker text-[10px] font-semibold text-gray-400">Lifecycle</p>
               <p className="mt-2 text-xl font-bold text-gray-900">{backtest.run?.status ?? backtest.result.status}</p>
               <p className="mt-1 text-xs text-gray-500">
                 {backtest.run?.demoMode ? "demo-isolated request" : "provider-backed request"}
               </p>
             </Card>
             <Card>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400">Trade count</p>
-              <p className="mt-2 text-3xl font-bold text-gray-900">{backtest.result.tradeMarkers.length}</p>
+              <p className="ui-kicker text-[10px] font-semibold text-gray-400">Trade count</p>
+              <p className="financial-data mt-2 text-3xl font-bold tracking-[-0.04em] text-gray-900">{backtest.result.tradeMarkers.length}</p>
               <p className="mt-1 text-xs text-gray-500">Lifecycle markers in current run</p>
             </Card>
           </section>
@@ -371,11 +371,11 @@ export function BacktestsPage() {
                   rows={backtest.result.tradeMarkers}
                   getRowKey={(item) => item.id}
                   columns={[
-                    { key: "time", label: "Timestamp", render: (item) => item.timestamp },
+                    { key: "time", label: "Timestamp", render: (item) => <span className="financial-data text-xs">{item.timestamp}</span> },
                     { key: "action", label: "Action", render: (item) => item.action },
                     { key: "side", label: "Side", render: (item) => item.side },
-                    { key: "qty", label: "Qty", render: (item) => item.qty },
-                    { key: "price", label: "Price", render: (item) => formatCurrency(item.price) },
+                    { key: "qty", label: "Qty", render: (item) => <span className="financial-data">{item.qty}</span> },
+                    { key: "price", label: "Price", render: (item) => <span className="financial-data">{formatCurrency(item.price)}</span> },
                     { key: "reason", label: "Reason", render: (item) => item.reason },
                   ]}
                 />

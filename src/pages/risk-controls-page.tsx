@@ -126,8 +126,8 @@ export function RiskControlsPage() {
         <div className="grid gap-4">
           <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400">Account level</p>
-              <p className="text-xs text-gray-500">
+              <p className="ui-kicker text-[10px] font-semibold text-gray-400">Account level</p>
+              <p className="financial-data text-xs text-gray-500">
                 {controls.maxPositionNotional}U notional / {controls.maxLeverage.toFixed(1)}x / {controls.dailyLossLimit}U daily loss
               </p>
             </div>
@@ -174,8 +174,8 @@ export function RiskControlsPage() {
 
           <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400">Strategy level</p>
-              <p className="text-xs text-gray-500">
+              <p className="ui-kicker text-[10px] font-semibold text-gray-400">Strategy level</p>
+              <p className="financial-data text-xs text-gray-500">
                 {controls.maxOpenPositions} open / {controls.maxConsecutiveLoss} loss streak / {controls.maxSymbolExposure}U symbol cap
               </p>
             </div>
@@ -221,8 +221,8 @@ export function RiskControlsPage() {
 
           <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400">Trade level</p>
-              <p className="text-xs text-gray-500">
+              <p className="ui-kicker text-[10px] font-semibold text-gray-400">Trade level</p>
+              <p className="financial-data text-xs text-gray-500">
                 {controls.stopLossPercent}% stop / {controls.maxTradeRisk}U risk / {controls.maxSlippagePercent}% slippage
               </p>
             </div>
@@ -271,8 +271,8 @@ export function RiskControlsPage() {
 
           <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400">Market level</p>
-              <p className="text-xs text-gray-500">
+              <p className="ui-kicker text-[10px] font-semibold text-gray-400">Market level</p>
+              <p className="financial-data text-xs text-gray-500">
                 {controls.maxSpreadPercent}% spread / {controls.volatilityFilterPercent}% volatility gate
               </p>
             </div>
@@ -420,22 +420,22 @@ export function RiskControlsPage() {
                 </span>
               </div>
               <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5">
-                Account: <span className="font-semibold text-gray-900">{controls.maxPositionNotional}U max notional / {controls.maxLeverage.toFixed(1)}x / {controls.dailyLossLimit}U daily loss</span>
+                Account: <span className="financial-data font-semibold text-gray-900">{controls.maxPositionNotional}U max notional / {controls.maxLeverage.toFixed(1)}x / {controls.dailyLossLimit}U daily loss</span>
               </div>
               <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5">
-                Strategy: <span className="font-semibold text-gray-900">{controls.maxOpenPositions} open / {controls.maxConsecutiveLoss} loss streak / {controls.maxSymbolExposure}U per symbol</span>
+                Strategy: <span className="financial-data font-semibold text-gray-900">{controls.maxOpenPositions} open / {controls.maxConsecutiveLoss} loss streak / {controls.maxSymbolExposure}U per symbol</span>
               </div>
               <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5">
-                Trade: <span className="font-semibold text-gray-900">{controls.stopLossPercent}% stop / {controls.maxTradeRisk}U max risk / {controls.maxSlippagePercent}% slippage</span>
+                Trade: <span className="financial-data font-semibold text-gray-900">{controls.stopLossPercent}% stop / {controls.maxTradeRisk}U max risk / {controls.maxSlippagePercent}% slippage</span>
               </div>
               <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5">
-                Market: <span className="font-semibold text-gray-900">{controls.maxSpreadPercent}% spread / {controls.volatilityFilterPercent}% volatility filter</span>
+                Market: <span className="financial-data font-semibold text-gray-900">{controls.maxSpreadPercent}% spread / {controls.volatilityFilterPercent}% volatility filter</span>
               </div>
               <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5">
                 Allowed symbols: <span className="font-semibold text-gray-900">{controls.allowedSymbols.join(", ") || "None"}</span>
               </div>
               <div className="rounded-xl border border-gray-100 bg-gray-50 p-3.5">
-                Updated at: <span className="font-semibold text-gray-900">{controls.updatedAt || "Pending first save"}</span>
+                Updated at: <span className="financial-data font-semibold text-gray-900">{controls.updatedAt || "Pending first save"}</span>
               </div>
             </div>
           </Card>

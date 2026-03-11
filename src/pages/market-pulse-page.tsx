@@ -134,7 +134,7 @@ export function MarketPulsePage() {
                 <p className="text-sm text-gray-600">{metric.label}</p>
                 <StatusPill tone={metric.tone}>{metric.freshness}</StatusPill>
               </div>
-              <p className="text-3xl font-semibold text-gray-900">{metric.value}</p>
+              <p className="financial-data text-3xl font-semibold tracking-[-0.04em] text-gray-900">{metric.value}</p>
             </div>
           ))}
         </div>

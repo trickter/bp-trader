@@ -29,7 +29,7 @@ export function DataTable<T>({
               <th
                 key={column.key}
                 className={cn(
-                  "px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.28em] text-gray-400",
+                  "ui-kicker px-4 py-3 text-[10px] font-semibold text-gray-400",
                   column.className,
                 )}
               >
@@ -52,7 +52,7 @@ export function DataTable<T>({
             rows.map((row) => (
               <tr key={getRowKey(row)} className="text-sm text-gray-700 transition hover:bg-gray-50">
                 {columns.map((column) => (
-                  <td key={column.key} className="px-4 py-3">
+                  <td key={column.key} className={cn("px-4 py-3 align-middle", column.className)}>
                     {column.render(row)}
                   </td>
                 ))}

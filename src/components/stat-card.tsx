@@ -19,8 +19,8 @@ export function StatCard({
       <div className="flex h-full flex-col justify-between gap-4">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400">{label}</p>
-            <p className="mt-3 text-3xl font-semibold text-gray-900">{value}</p>
+            <p className="ui-kicker text-[10px] font-semibold text-gray-400">{label}</p>
+            <p className="financial-data mt-3 text-3xl font-semibold tracking-[-0.04em] text-gray-900">{value}</p>
           </div>
           {badge ? <StatusPill tone={tone}>{badge}</StatusPill> : null}
         </div>

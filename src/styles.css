@@ -1,31 +1,69 @@
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Syne:wght@500;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 
 :root {
-  color-scheme: dark;
-  font-family: "Manrope", sans-serif;
-  background: #020817;
+  color-scheme: light;
+  font-family: "Inter", sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", "SF Mono", Consolas, "Liberation Mono", monospace;
+  background: #f8fafc;
+  font-synthesis: none;
+}
+
+html {
+  font-family: var(--font-sans);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv02" 1, "cv03" 1, "cv04" 1, "cv11" 1;
 }
 
 body {
   margin: 0;
   min-width: 320px;
   background:
-    radial-gradient(circle at top left, rgba(56, 189, 248, 0.08), transparent 22%),
-    radial-gradient(circle at top right, rgba(34, 211, 238, 0.09), transparent 18%),
-    linear-gradient(180deg, #020817, #06101f 42%, #030712);
+    radial-gradient(circle at top left, rgba(59, 130, 246, 0.08), transparent 20%),
+    radial-gradient(circle at top right, rgba(14, 165, 233, 0.06), transparent 18%),
+    linear-gradient(180deg, #f8fafc 0%, #f8fbff 42%, #f3f6fb 100%);
+  color: #0f172a;
 }
 
 h1,
 h2,
 h3,
 h4 {
-  font-family: "Syne", sans-serif;
-  letter-spacing: -0.03em;
+  font-family: var(--font-sans);
+  letter-spacing: -0.035em;
 }
 
 * {
   box-sizing: border-box;
+}
+
+code,
+pre,
+kbd,
+samp {
+  font-family: var(--font-mono);
+}
+
+input[type="number"],
+input[type="datetime-local"],
+input[type="time"] {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "zero" 1;
+}
+
+.financial-data {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "zero" 1;
+}
+
+.ui-kicker {
+  text-transform: uppercase;
+  letter-spacing: 0.28em;
 }
 
 #root {
