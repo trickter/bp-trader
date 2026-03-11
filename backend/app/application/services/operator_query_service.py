@@ -99,6 +99,12 @@ class OperatorQueryService:
             AgentCapability(id="risk_controls.read", label="Read risk controls", description="Read the explicit operator risk envelope.", route="/api/risk-controls", entity="risk_controls"),
             AgentCapability(id="risk_controls.write", label="Write risk controls", description="Update the explicit operator risk envelope.", read_only=False, route="/api/risk-controls", entity="risk_controls"),
             AgentCapability(id="settings.exchange_accounts.read", label="Read exchange accounts", description="Read normalized exchange-account metadata and credential rotation state.", route="/api/settings/accounts", entity="exchange_account"),
+            AgentCapability(id="execution.runtime.read", label="Read execution runtime", description="Read live execution runtime state, enabled strategies, and counts.", route="/api/execution/runtime", entity="execution_runtime"),
+            AgentCapability(id="execution.runtime.write", label="Control execution runtime", description="Start or stop the live execution runtime.", read_only=False, route="/api/execution/runtime/{command}", entity="execution_runtime"),
+            AgentCapability(id="execution.strategies.write", label="Enable live strategies", description="Enable or disable whitelisted strategies for live execution.", read_only=False, route="/api/execution/live-strategies/{strategy_id}/{command}", entity="live_strategy"),
+            AgentCapability(id="execution.positions.write", label="Flatten live strategy positions", description="Submit reduce-only manual close orders for a live strategy market.", read_only=False, route="/api/execution/live-strategies/{strategy_id}/flatten", entity="execution_order"),
+            AgentCapability(id="execution.orders.read", label="Read execution orders", description="Read recent live execution orders and statuses.", route="/api/execution/orders", entity="execution_order"),
+            AgentCapability(id="execution.events.read", label="Read execution events", description="Read recent live execution events and failure reasons.", route="/api/execution/events", entity="execution_event"),
         ]
 
     async def agent_context(self) -> dict[str, object]:
@@ -129,6 +135,10 @@ class OperatorQueryService:
                 "exchangeAccounts": "/api/settings/accounts",
                 "alerts": "/api/alerts",
                 "backtests": "/api/backtests/{id}",
+                "executionRuntime": "/api/execution/runtime",
+                "executionStrategies": "/api/execution/live-strategies",
+                "executionOrders": "/api/execution/orders",
+                "executionEvents": "/api/execution/events",
             },
         )
         return payload.model_dump(by_alias=True)

@@ -75,3 +75,12 @@ class BacktestRunAccepted(APIModel):
     result_path: str
     poll_after_ms: int = 0
     demo_mode: bool = False
+
+
+class LiveStrategyEnableRequest(APIModel):
+    confirmed: bool = False
+
+
+class ExecutionRuntimeCommand(APIModel):
+    confirmed: bool = False
+    reason: str = ""

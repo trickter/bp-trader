@@ -53,14 +53,14 @@ async def test_upstream_http_errors_do_not_expose_payloads() -> None:
     await http_client.aclose()
 
     error = exc_info.value
-    assert str(error) == "Backpack request was rejected by the provider."
+    assert str(error) == "provider is down"
     assert error.code == "backpack_upstream_error"
     assert error.status_code == 503
     assert error.upstream_status == 503
     assert error.retryable is True
     assert error.to_error_context() == {
         "code": "backpack_upstream_error",
-        "message": "Backpack request was rejected by the provider.",
+        "message": "provider is down",
         "retryable": True,
         "statusCode": 503,
         "upstreamStatus": 503,

@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CandlestickChart } from "../components/candlestick-chart";
 import { DataTable, type Column } from "../components/data-table";
 import { BacktestsPage } from "../pages/backtests-page";
+import { ExecutionPage } from "../pages/execution-page";
 import { MarketPulsePage } from "../pages/market-pulse-page";
 import { ProfilePage } from "../pages/profile-page";
 import { StrategiesPage } from "../pages/strategies-page";
@@ -17,6 +18,16 @@ const apiMock = vi.hoisted(() => ({
   strategies: vi.fn(),
   createStrategy: vi.fn(),
   updateStrategy: vi.fn(),
+  liveStrategies: vi.fn(),
+  enableLiveStrategy: vi.fn(),
+  disableLiveStrategy: vi.fn(),
+  flattenLiveStrategy: vi.fn(),
+  disableAndFlattenLiveStrategy: vi.fn(),
+  executionRuntime: vi.fn(),
+  startExecutionRuntime: vi.fn(),
+  stopExecutionRuntime: vi.fn(),
+  executionOrders: vi.fn(),
+  executionEvents: vi.fn(),
   createTemplateBacktest: vi.fn(),
   getBacktest: vi.fn(),
   marketPulse: vi.fn(),
@@ -275,6 +286,48 @@ describe("async admin pages", () => {
       domainVocabulary: [],
       resources: {},
     });
+    apiMock.liveStrategies.mockResolvedValue([]);
+    apiMock.executionRuntime.mockResolvedValue({
+      mode: "live",
+      running: false,
+      maxConcurrentStrategies: 2,
+      activeStrategyCount: 0,
+      enabledStrategyCount: 0,
+      budgets: [],
+      warnings: [],
+      startedAt: null,
+      stoppedAt: null,
+      lastCycleAt: null,
+      lastError: null,
+    });
+    apiMock.executionOrders.mockResolvedValue([]);
+    apiMock.executionEvents.mockResolvedValue([]);
+    apiMock.startExecutionRuntime.mockResolvedValue({
+      mode: "live",
+      running: true,
+      maxConcurrentStrategies: 2,
+      activeStrategyCount: 0,
+      enabledStrategyCount: 0,
+      budgets: [],
+      warnings: [],
+      startedAt: "2026-03-10T00:00:00Z",
+      stoppedAt: null,
+      lastCycleAt: null,
+      lastError: null,
+    });
+    apiMock.stopExecutionRuntime.mockResolvedValue({
+      mode: "live",
+      running: false,
+      maxConcurrentStrategies: 2,
+      activeStrategyCount: 0,
+      enabledStrategyCount: 0,
+      budgets: [],
+      warnings: [],
+      startedAt: null,
+      stoppedAt: "2026-03-10T00:00:00Z",
+      lastCycleAt: null,
+      lastError: null,
+    });
   });
 
   it("shows a visible error state instead of a false empty table on profile failures", async () => {
@@ -379,7 +432,7 @@ describe("async admin pages", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText("Long / entry conditions")).toBeInTheDocument();
+    expect((await screen.findAllByText("Long / entry conditions")).length).toBeGreaterThan(0);
     expect(screen.getByText("Market filters")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Long entry")).toBeInTheDocument();
   });
@@ -393,6 +446,40 @@ describe("async admin pages", () => {
       expect(screen.getByText("Market pulse failed to load")).toBeInTheDocument(),
     );
     expect(screen.getByText("Upstream market pulse timeout")).toBeInTheDocument();
+  });
+
+  it("renders execution runtime controls and live strategy table", async () => {
+    apiMock.liveStrategies.mockResolvedValue([
+      {
+        strategyId: "strat_001",
+        strategyName: "Momentum Burst",
+        strategyKind: "template",
+        market: "BTC_USDC_PERP",
+        accountId: "acct_001",
+        priceSource: "last",
+        runtimeStatus: "live_ready",
+        liveEnabled: true,
+        isWhitelisted: true,
+        executionWeight: 0.7,
+        pollIntervalSeconds: 60,
+        confirmedAt: "2026-03-10T00:00:00Z",
+        lastCycleAt: null,
+        lastSignal: null,
+        lastError: null,
+        lastOrderId: null,
+        readinessChecks: [],
+      },
+    ]);
+
+    render(
+      <MemoryRouter>
+        <ExecutionPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Execution control")).toBeInTheDocument();
+    expect(screen.getByText("Momentum Burst")).toBeInTheDocument();
+    expect(screen.getByText("Start runtime")).toBeInTheDocument();
   });
 
   it("shows marker table empty state when a backtest returns zero trades", async () => {

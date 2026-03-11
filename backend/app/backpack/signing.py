@@ -4,7 +4,7 @@ import base64
 from typing import Any
 
 from .exceptions import BackpackSigningError
-from .serialize import signature_payload
+from .serialize import batch_signature_payload, signature_payload
 
 
 def _decode_private_key_bytes(private_key: str | bytes) -> bytes:
@@ -82,6 +82,25 @@ def sign_instruction(
     payload = signature_payload(
         instruction=instruction,
         params=params,
+        timestamp_ms=timestamp_ms,
+        window_ms=window_ms,
+    )
+    signer = _load_private_key(private_key)
+    signature = signer.sign(payload.encode("utf-8"))
+    return base64.b64encode(signature).decode("ascii")
+
+
+def sign_instruction_batch(
+    *,
+    private_key: str | bytes,
+    instruction: str,
+    entries: list[dict[str, object | None]],
+    timestamp_ms: int,
+    window_ms: int,
+) -> str:
+    payload = batch_signature_payload(
+        instruction=instruction,
+        entries=entries,
         timestamp_ms=timestamp_ms,
         window_ms=window_ms,
     )

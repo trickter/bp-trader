@@ -68,6 +68,33 @@ export interface StrategySummary {
   parameters: Record<string, string | number | boolean>;
 }
 
+export interface ExecutionBudgetAllocation {
+  strategyId: string;
+  strategyName: string;
+  weight: number;
+  budgetNotional: number;
+}
+
+export interface LiveStrategyExecution {
+  strategyId: string;
+  strategyName: string;
+  strategyKind: "template" | "script";
+  market: string;
+  accountId: string;
+  priceSource: PriceSource;
+  runtimeStatus: string;
+  liveEnabled: boolean;
+  isWhitelisted: boolean;
+  executionWeight: number;
+  pollIntervalSeconds: number;
+  confirmedAt?: string | null;
+  lastCycleAt?: string | null;
+  lastSignal?: string | null;
+  lastError?: string | null;
+  lastOrderId?: string | null;
+  readinessChecks: string[];
+}
+
 export interface TradeMarker {
   id: string;
   timestamp: string;
@@ -194,6 +221,60 @@ export interface RiskControls {
   killSwitchEnabled: boolean;
   requireMarkPrice: boolean;
   updatedAt: string;
+}
+
+export interface ExecutionOrder {
+  id: string;
+  strategyId: string;
+  strategyName: string;
+  clientOrderId: string;
+  exchangeOrderId: string;
+  symbol: string;
+  side: string;
+  action: string;
+  status: string;
+  quantity: number;
+  price: number;
+  reduceOnly: boolean;
+  submittedAt: string;
+  updatedAt: string;
+  failureReason: string;
+}
+
+export interface ExecutionEvent {
+  id: string;
+  strategyId: string;
+  strategyName: string;
+  level: "info" | "warning" | "critical" | string;
+  eventType: string;
+  message: string;
+  symbol?: string;
+  signal?: string;
+  createdAt: string;
+  metadata: Record<string, string | number | boolean>;
+}
+
+export interface ExecutionRuntimeStatus {
+  mode: string;
+  running: boolean;
+  maxConcurrentStrategies: number;
+  activeStrategyCount: number;
+  enabledStrategyCount: number;
+  budgets: ExecutionBudgetAllocation[];
+  warnings: string[];
+  startedAt?: string | null;
+  stoppedAt?: string | null;
+  lastCycleAt?: string | null;
+  lastError?: string | null;
+}
+
+export interface LiveStrategyEnableRequest {
+  confirmed: boolean;
+}
+
+export interface ExecutionRuntimeCommand {
+  confirmed: boolean;
+  reason: string;
 }
 
 export interface AgentCapability {

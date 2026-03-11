@@ -36,6 +36,8 @@ def from_backpack_request_error(exc) -> ApplicationError:
     metadata: dict[str, object] = {}
     if exc.upstream_status is not None:
         metadata["upstreamStatus"] = exc.upstream_status
+    if getattr(exc, "upstream_code", None) is not None:
+        metadata["upstreamCode"] = exc.upstream_code
     return ApplicationError(
         code=exc.code,
         message=exc.message,

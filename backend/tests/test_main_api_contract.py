@@ -68,6 +68,7 @@ def test_agent_context_exposes_capability_discovery(monkeypatch):
         assert payload["accountMode"] == "mock"
         assert "profile.summary.read" in payload["availableCapabilities"]
         assert payload["resources"]["profileSummary"] == "/api/profile/summary"
+        assert payload["resources"]["executionRuntime"] == "/api/execution/runtime"
 
 
 def test_live_profile_routes_share_snapshot_cache(monkeypatch):
@@ -105,3 +106,46 @@ class SnapshotCountingProvider:
                 items=[NormalizedRecord(data=item, raw_payload=item.model_dump(by_alias=True)) for item in POSITIONS]
             ),
         )
+
+
+def test_execution_runtime_contract(monkeypatch):
+    client, _ = create_client(monkeypatch)
+
+    with client:
+        enable_response = client.post(
+            "/api/execution/live-strategies/strat_001/enable",
+            headers=admin_headers(),
+            json={"confirmed": True},
+        )
+        runtime_response = client.get("/api/execution/runtime", headers=admin_headers())
+        events_response = client.get("/api/execution/events", headers=admin_headers())
+
+        assert enable_response.status_code == 200
+        assert runtime_response.status_code == 200
+        assert events_response.status_code == 200
+        assert runtime_response.json()["enabledStrategyCount"] == 1
+
+
+def test_execution_flatten_routes_exist(monkeypatch):
+    client, _ = create_client(monkeypatch)
+
+    with client:
+        enable_response = client.post(
+            "/api/execution/live-strategies/strat_001/enable",
+            headers=admin_headers(),
+            json={"confirmed": True},
+        )
+        flatten_response = client.post(
+            "/api/execution/live-strategies/strat_001/flatten",
+            headers=admin_headers(),
+            json={"confirmed": True, "reason": "contract"},
+        )
+        disable_and_flatten_response = client.post(
+            "/api/execution/live-strategies/strat_001/disable-and-flatten",
+            headers=admin_headers(),
+            json={"confirmed": True, "reason": "contract"},
+        )
+
+        assert enable_response.status_code == 200
+        assert flatten_response.status_code in {200, 400}
+        assert disable_and_flatten_response.status_code in {200, 400}

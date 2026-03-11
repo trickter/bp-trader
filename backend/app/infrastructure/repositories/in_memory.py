@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ...application.ports.repositories import BacktestRunRepository, RiskControlsRepository, StrategyRepository
+from ...application.ports.repositories import BacktestRunRepository, ExecutionRuntimeRepository, RiskControlsRepository, StrategyRepository
 from ...domain.strategy.entities import Strategy
-from ...schemas import BacktestResult, RiskControls, StrategySummary
+from ...schemas import BacktestResult, ExecutionEvent, ExecutionOrder, ExecutionRuntimeStatus, LiveStrategyExecution, RiskControls, StrategySummary
 from ..state import RuntimeState
 
 
@@ -95,3 +95,70 @@ class InMemoryRiskControlsRepository(RiskControlsRepository):
         updated = self.default_controls.model_copy(update=controls.model_dump())
         self.state.set("risk_controls", updated)
         return updated
+
+
+@dataclass(slots=True)
+class InMemoryExecutionRuntimeRepository(ExecutionRuntimeRepository):
+    state: RuntimeState
+
+    def list_live_strategies(self) -> list[LiveStrategyExecution]:
+        return list(self.state.get("execution_live_strategies", []))
+
+    def get_live_strategy(self, strategy_id: str) -> LiveStrategyExecution | None:
+        for item in self.list_live_strategies():
+            if item.strategy_id == strategy_id:
+                return item
+        return None
+
+    def save_live_strategy(self, item: LiveStrategyExecution) -> LiveStrategyExecution:
+        strategies = self.list_live_strategies()
+        for index, current in enumerate(strategies):
+            if current.strategy_id == item.strategy_id:
+                strategies[index] = item
+                break
+        else:
+            strategies.append(item)
+        self.state.set("execution_live_strategies", strategies)
+        return item
+
+    def append_order(self, order: ExecutionOrder) -> ExecutionOrder:
+        orders = list(self.state.get("execution_orders", []))
+        orders.insert(0, order)
+        self.state.set("execution_orders", orders[:100])
+        return order
+
+    def list_orders(self) -> list[ExecutionOrder]:
+        return list(self.state.get("execution_orders", []))
+
+    def append_event(self, event: ExecutionEvent) -> ExecutionEvent:
+        events = list(self.state.get("execution_events", []))
+        events.insert(0, event)
+        self.state.set("execution_events", events[:200])
+        return event
+
+    def list_events(self) -> list[ExecutionEvent]:
+        return list(self.state.get("execution_events", []))
+
+    def get_runtime_status(self) -> ExecutionRuntimeStatus:
+        current = self.state.get("execution_runtime_status")
+        if isinstance(current, ExecutionRuntimeStatus):
+            return current
+        status = ExecutionRuntimeStatus(
+            mode="live",
+            running=False,
+            max_concurrent_strategies=2,
+            active_strategy_count=0,
+            enabled_strategy_count=len(self.list_live_strategies()),
+        )
+        self.state.set("execution_runtime_status", status)
+        return status
+
+    def save_runtime_status(self, status: ExecutionRuntimeStatus) -> ExecutionRuntimeStatus:
+        self.state.set("execution_runtime_status", status)
+        return status
+
+    def get_background_task(self):
+        return self.state.get("execution_runtime_task")
+
+    def set_background_task(self, task) -> None:
+        self.state.set("execution_runtime_task", task)

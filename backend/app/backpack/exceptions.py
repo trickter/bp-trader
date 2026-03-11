@@ -18,6 +18,7 @@ class BackpackRequestError(BackpackError):
         message: str,
         *,
         code: str = "backpack_request_failed",
+        upstream_code: str | None = None,
         suggested_http_status: int | None = None,
         upstream_status: int | None = None,
         retryable: bool = False,
@@ -25,6 +26,7 @@ class BackpackRequestError(BackpackError):
         super().__init__(message)
         self.message = message
         self.code = code
+        self.upstream_code = upstream_code
         self.suggested_http_status = suggested_http_status
         self.upstream_status = upstream_status
         self.retryable = retryable
@@ -43,4 +45,6 @@ class BackpackRequestError(BackpackError):
             context["statusCode"] = self.suggested_http_status
         if self.upstream_status is not None:
             context["upstreamStatus"] = self.upstream_status
+        if self.upstream_code is not None:
+            context["upstreamCode"] = self.upstream_code
         return context

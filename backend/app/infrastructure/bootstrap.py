@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from fastapi import FastAPI
 
 from ..application.services.backtest_application_service import BacktestApplicationService
+from ..application.services.live_execution_application_service import LiveExecutionApplicationService
 from ..application.services.operator_query_service import OperatorQueryService
 from ..application.services.strategy_application_service import StrategyApplicationService
 from ..backpack import BackpackAuthConfig, BackpackClient
@@ -14,7 +15,8 @@ from ..mock_data import ALERTS, BACKTEST_RESULT, MARKET_SYMBOLS, RISK_CONTROLS, 
 from ..providers import BackpackProvider
 from ..schemas import PriceSource
 from .gateways.operator_gateway import OperatorGateway
-from .repositories.in_memory import InMemoryBacktestRunRepository, InMemoryRiskControlsRepository, InMemoryStrategyRepository
+from .gateways.execution_gateway import BackpackExecutionGateway
+from .repositories.in_memory import InMemoryBacktestRunRepository, InMemoryExecutionRuntimeRepository, InMemoryRiskControlsRepository, InMemoryStrategyRepository
 from .state import RuntimeState
 
 
@@ -22,6 +24,7 @@ from .state import RuntimeState
 class ServiceContainer:
     strategy_app: StrategyApplicationService
     backtest_app: BacktestApplicationService
+    execution_app: LiveExecutionApplicationService
     operator_queries: OperatorQueryService
     alerts: list
 
@@ -32,6 +35,7 @@ def build_services(app: FastAPI) -> ServiceContainer:
     strategy_repository = InMemoryStrategyRepository(app.state.strategy_registry)
     backtest_repository = InMemoryBacktestRunRepository(app.state.backtest_runs)
     risk_repository = InMemoryRiskControlsRepository(runtime_state, RISK_CONTROLS)
+    execution_repository = InMemoryExecutionRuntimeRepository(runtime_state)
     operator_gateway = OperatorGateway(
         settings_obj=settings,
         default_symbol=settings.backpack_default_symbol,
@@ -58,9 +62,21 @@ def build_services(app: FastAPI) -> ServiceContainer:
         settings_obj=settings,
         default_symbol=settings.backpack_default_symbol,
     )
+    execution_app = LiveExecutionApplicationService(
+        strategy_repository=strategy_repository,
+        risk_controls_repository=risk_repository,
+        operator_gateway=operator_gateway,
+        execution_gateway=BackpackExecutionGateway(
+            runtime_state=runtime_state,
+            mode=settings.backpack_mode,
+        ),
+        runtime_repository=execution_repository,
+        settings_obj=settings,
+    )
     return ServiceContainer(
         strategy_app=strategy_app,
         backtest_app=backtest_app,
+        execution_app=execution_app,
         operator_queries=operator_queries,
         alerts=ALERTS,
     )
@@ -82,6 +98,11 @@ async def app_lifespan(app: FastAPI):
     app.state.market_symbols = list(MARKET_SYMBOLS)
     app.state.live_profile_snapshot_cache = {}
     app.state.live_profile_snapshot_locks = {}
+    app.state.execution_live_strategies = []
+    app.state.execution_orders = []
+    app.state.execution_events = []
+    app.state.execution_runtime_status = None
+    app.state.execution_runtime_task = None
 
     if settings.backpack_mode == "live":
         client = BackpackClient(
@@ -105,5 +126,8 @@ async def app_lifespan(app: FastAPI):
     try:
         yield
     finally:
+        execution_task = getattr(app.state, "execution_runtime_task", None)
+        if execution_task is not None:
+            execution_task.cancel()
         if app.state.backpack_client is not None:
             await app.state.backpack_client.__aexit__(None, None, None)

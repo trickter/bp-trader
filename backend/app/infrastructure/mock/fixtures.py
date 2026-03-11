@@ -51,7 +51,7 @@ ACCOUNT_EVENTS = [
 ]
 
 STRATEGIES = [
-    StrategySummary(id="strat_001", name="Momentum Burst", kind="template", description="Breakout continuation system with ATR volatility filter.", market="BTC_USDC_PERP", account_id="acct_001", runtime="paper", status="healthy", last_backtest="2026-03-08T10:12:00Z", sharpe=2.14, price_source=PriceSource.LAST, parameters={"fast_ema": 21, "slow_ema": 55, "atr_stop": 2.5}),
+    StrategySummary(id="strat_001", name="Momentum Burst", kind="template", description="Breakout continuation system with ATR volatility filter.", market="BTC_USDC_PERP", account_id="acct_001", runtime="paper", status="healthy", last_backtest="2026-03-08T10:12:00Z", sharpe=2.14, price_source=PriceSource.LAST, parameters={"fast_ema": 21, "slow_ema": 55, "atr_stop": 2.5, "live_enabled": True, "execution_weight": 0.6, "poll_interval_seconds": 30}),
     StrategySummary(id="strat_002", name="Funding Carry Stack", kind="script", description="Bias-adjusted carry harvesting with inventory clamp.", market="SOL_USDC_PERP", account_id="acct_001", runtime="paper", status="healthy", last_backtest="2026-03-08T09:48:00Z", sharpe=1.76, price_source=PriceSource.MARK, parameters={"carry_threshold": 0.0002, "inventory_cap": 180}),
     StrategySummary(id="strat_003", name="Mean Reversion Net", kind="template", description="Index-referenced fade with session gating.", market="ETH_USDC_PERP", account_id="acct_002", runtime="disabled", status="idle", last_backtest="", sharpe=0.0, price_source=PriceSource.INDEX, parameters={"z_entry": 2.1, "z_exit": 0.7}),
 ]

@@ -6,7 +6,7 @@ import base64
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.backpack.client import BackpackClient
-from app.backpack.types import BackpackAuthConfig
+from app.backpack.types import BackpackAuthConfig, BackpackOrderRequest
 from app.backpack.exceptions import BackpackAuthError
 
 
@@ -77,6 +77,22 @@ class TestSignedHeaders:
 
         decoded = base64.b64decode(headers["X-Signature"])
         assert len(decoded) == 64  # Ed25519 signature is 64 bytes
+
+    def test_batch_signature_is_valid_base64(self, client):
+        headers = client._build_signed_batch_headers(
+            instruction="orderExecute",
+            entries=[
+                {
+                    "symbol": "BTC_USDC_PERP",
+                    "side": "Bid",
+                    "orderType": "Market",
+                    "quantity": "0.001",
+                }
+            ],
+        )
+
+        decoded = base64.b64decode(headers["X-Signature"])
+        assert len(decoded) == 64
 
 
 class TestClientEndpoints:
@@ -206,6 +222,94 @@ class TestClientEndpoints:
             await client.get_market("SOL-PERP")
 
             mock_request.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_open_orders_parameters(self, client):
+        with patch.object(client, "_request", new_callable=AsyncMock) as mock_request:
+            mock_request.return_value = {"orders": []}
+            await client.get_open_orders(symbol="BTC_USDC_PERP", limit=25)
+
+            mock_request.assert_called_once()
+            call_args = mock_request.call_args
+            assert call_args.args[0] == "GET"
+            assert "/api/v1/orders" in call_args.args[1]
+
+    @pytest.mark.asyncio
+    async def test_get_order_history_parameters(self, client):
+        with patch.object(client, "_request", new_callable=AsyncMock) as mock_request:
+            mock_request.return_value = {"orders": []}
+            await client.get_order_history(symbol="BTC_USDC_PERP", limit=25, offset=10)
+
+            mock_request.assert_called_once()
+            call_args = mock_request.call_args
+            assert call_args.args[0] == "GET"
+            assert "/wapi/v1/history/orders" in call_args.args[1]
+
+    @pytest.mark.asyncio
+    async def test_create_order_uses_signed_json_body(self, client):
+        with patch.object(client, "_request", new_callable=AsyncMock) as mock_request:
+            mock_request.return_value = {"id": "ord_123"}
+
+            await client.create_order(
+                BackpackOrderRequest(
+                    symbol="BTC_USDC_PERP",
+                    side="Bid",
+                    order_type="Market",
+                    quantity="0.001",
+                    client_id=123,
+                )
+            )
+
+            mock_request.assert_called_once()
+            call_args = mock_request.call_args
+            assert call_args.args[0] == "POST"
+            assert "/api/v1/order" in call_args.args[1]
+            assert call_args.kwargs["json_body"]["clientId"] == 123
+            assert call_args.kwargs["params"] == {}
+
+    @pytest.mark.asyncio
+    async def test_create_orders_posts_batch_payload(self, client):
+        with patch.object(client, "_request", new_callable=AsyncMock) as mock_request:
+            mock_request.return_value = {"submitted": 2}
+
+            await client.create_orders(
+                [
+                    BackpackOrderRequest(
+                        symbol="BTC_USDC_PERP",
+                        side="Bid",
+                        order_type="Market",
+                        quantity="0.001",
+                        client_id=1,
+                    ),
+                    BackpackOrderRequest(
+                        symbol="ETH_USDC_PERP",
+                        side="Ask",
+                        order_type="Market",
+                        quantity="0.01",
+                        client_id=2,
+                        reduce_only=True,
+                    ),
+                ]
+            )
+
+            mock_request.assert_called_once()
+            call_args = mock_request.call_args
+            assert call_args.args[0] == "POST"
+            assert "/api/v1/orders" in call_args.args[1]
+            assert len(call_args.kwargs["json_body"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_cancel_order_uses_delete_with_signed_json_body(self, client):
+        with patch.object(client, "_request", new_callable=AsyncMock) as mock_request:
+            mock_request.return_value = {"status": "canceled"}
+
+            await client.cancel_order(symbol="BTC_USDC_PERP", client_id="123")
+
+            mock_request.assert_called_once()
+            call_args = mock_request.call_args
+            assert call_args.args[0] == "DELETE"
+            assert "/api/v1/order" in call_args.args[1]
+            assert call_args.kwargs["json_body"]["clientId"] == "123"
 
 
 class TestClientContextManager:

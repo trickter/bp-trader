@@ -48,3 +48,21 @@ def signature_payload(
     components.append(f"timestamp={timestamp_ms}")
     components.append(f"window={window_ms}")
     return "&".join(components)
+
+
+def batch_signature_payload(
+    instruction: str,
+    entries: list[Mapping[str, object | None]],
+    *,
+    timestamp_ms: int,
+    window_ms: int,
+) -> str:
+    components: list[str] = []
+    for entry in entries:
+        components.append(f"instruction={instruction}")
+        serialized = canonical_query_string(entry)
+        if serialized:
+            components.append(serialized)
+    components.append(f"timestamp={timestamp_ms}")
+    components.append(f"window={window_ms}")
+    return "&".join(components)

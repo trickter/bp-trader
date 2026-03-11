@@ -8,8 +8,8 @@ import httpx
 
 from .exceptions import BackpackAuthError, BackpackRequestError
 from .serialize import canonical_query_string
-from .signing import sign_instruction
-from .types import BackpackAuthConfig, BackpackRequestConfig
+from .signing import sign_instruction, sign_instruction_batch
+from .types import BackpackAuthConfig, BackpackOrderRequest, BackpackRequestConfig
 
 
 SIGNED_ENDPOINTS: dict[str, BackpackRequestConfig] = {
@@ -19,6 +19,12 @@ SIGNED_ENDPOINTS: dict[str, BackpackRequestConfig] = {
     "positions": BackpackRequestConfig(instruction="positionQuery", path="/api/v1/position"),
     "fills_history": BackpackRequestConfig(instruction="fillHistoryQuery", path="/wapi/v1/history/fills"),
     "funding_history": BackpackRequestConfig(instruction="fundingHistoryQuery", path="/wapi/v1/history/funding"),
+    "open_orders": BackpackRequestConfig(instruction="orderQueryAll", path="/api/v1/orders"),
+    "order_history": BackpackRequestConfig(instruction="orderHistoryQueryAll", path="/wapi/v1/history/orders"),
+    "order": BackpackRequestConfig(instruction="orderQuery", path="/api/v1/order"),
+    "create_order": BackpackRequestConfig(instruction="orderExecute", path="/api/v1/order"),
+    "create_orders": BackpackRequestConfig(instruction="orderExecute", path="/api/v1/orders"),
+    "cancel_order": BackpackRequestConfig(instruction="orderCancel", path="/api/v1/order"),
 }
 
 PUBLIC_ENDPOINTS: dict[str, str] = {
@@ -60,6 +66,30 @@ class BackpackClient:
         params: Mapping[str, object | None] | None = None,
     ) -> Any:
         return await self._request("GET", path, params=dict(params or {}), headers=None)
+
+    async def _request_signed_json(
+        self,
+        method: str,
+        *,
+        instruction: str,
+        path: str,
+        payload: Mapping[str, object | None],
+    ) -> Any:
+        body = dict(payload)
+        headers = self._build_signed_headers(instruction=instruction, params=body)
+        return await self._request(method, path, params={}, headers=headers, json_body=body)
+
+    async def _request_signed_json_batch(
+        self,
+        method: str,
+        *,
+        instruction: str,
+        path: str,
+        payloads: list[Mapping[str, object | None]],
+    ) -> Any:
+        body = [dict(item) for item in payloads]
+        headers = self._build_signed_batch_headers(instruction=instruction, entries=body)
+        return await self._request(method, path, params={}, headers=headers, json_body=body)
 
     async def get_signed(
         self,
@@ -133,6 +163,86 @@ class BackpackClient:
 
     async def get_markets(self) -> Any:
         return await self.get_public(PUBLIC_ENDPOINTS["markets"])
+
+    async def get_order(
+        self,
+        *,
+        symbol: str,
+        order_id: str | None = None,
+        client_id: str | None = None,
+    ) -> Any:
+        endpoint = SIGNED_ENDPOINTS["order"]
+        return await self.get_signed(
+            instruction=endpoint.instruction,
+            path=endpoint.path,
+            params={"symbol": symbol, "orderId": order_id, "clientId": client_id},
+        )
+
+    async def get_open_orders(self, *, symbol: str | None = None, limit: int | None = None) -> Any:
+        endpoint = SIGNED_ENDPOINTS["open_orders"]
+        return await self.get_signed(
+            instruction=endpoint.instruction,
+            path=endpoint.path,
+            params={"symbol": symbol, "limit": limit},
+        )
+
+    async def get_order_history(
+        self,
+        *,
+        symbol: str | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> Any:
+        endpoint = SIGNED_ENDPOINTS["order_history"]
+        return await self.get_signed(
+            instruction=endpoint.instruction,
+            path=endpoint.path,
+            params={"symbol": symbol, "limit": limit, "offset": offset},
+        )
+
+    async def create_order(
+        self,
+        order: BackpackOrderRequest | Mapping[str, object | None],
+    ) -> Any:
+        endpoint = SIGNED_ENDPOINTS["create_order"]
+        payload = order.to_payload() if isinstance(order, BackpackOrderRequest) else dict(order)
+        return await self._request_signed_json(
+            "POST",
+            instruction=endpoint.instruction,
+            path=endpoint.path,
+            payload=payload,
+        )
+
+    async def create_orders(
+        self,
+        orders: list[BackpackOrderRequest | Mapping[str, object | None]],
+    ) -> Any:
+        endpoint = SIGNED_ENDPOINTS["create_orders"]
+        payloads = [
+            item.to_payload() if isinstance(item, BackpackOrderRequest) else dict(item)
+            for item in orders
+        ]
+        return await self._request_signed_json_batch(
+            "POST",
+            instruction=endpoint.instruction,
+            path=endpoint.path,
+            payloads=payloads,
+        )
+
+    async def cancel_order(
+        self,
+        *,
+        symbol: str,
+        order_id: str | None = None,
+        client_id: str | None = None,
+    ) -> Any:
+        endpoint = SIGNED_ENDPOINTS["cancel_order"]
+        return await self._request_signed_json(
+            "DELETE",
+            instruction=endpoint.instruction,
+            path=endpoint.path,
+            payload={"symbol": symbol, "orderId": order_id, "clientId": client_id},
+        )
 
     async def get_market(self, symbol: str) -> Any:
         return await self.get_public(PUBLIC_ENDPOINTS["market"], params={"symbol": symbol})
@@ -224,6 +334,30 @@ class BackpackClient:
             "X-Window": str(self._config.window_ms),
         }
 
+    def _build_signed_batch_headers(
+        self,
+        *,
+        instruction: str,
+        entries: list[Mapping[str, object | None]],
+    ) -> dict[str, str]:
+        if not self._config.api_key or not self._config.private_key:
+            raise BackpackAuthError("Signed Backpack requests require api_key and private_key.")
+
+        timestamp_ms = int(time.time() * 1000)
+        signature = sign_instruction_batch(
+            private_key=self._config.private_key,
+            instruction=instruction,
+            entries=[dict(item) for item in entries],
+            timestamp_ms=timestamp_ms,
+            window_ms=self._config.window_ms,
+        )
+        return {
+            "X-API-Key": self._config.api_key,
+            "X-Signature": signature,
+            "X-Timestamp": str(timestamp_ms),
+            "X-Window": str(self._config.window_ms),
+        }
+
     async def _request(
         self,
         method: str,
@@ -231,6 +365,7 @@ class BackpackClient:
         *,
         params: dict[str, object | None],
         headers: Mapping[str, str] | None,
+        json_body: object | None = None,
     ) -> Any:
         encoded_params = canonical_query_string(params)
         url = path
@@ -238,7 +373,7 @@ class BackpackClient:
             url = f"{path}?{encoded_params}"
 
         try:
-            response = await self._client.request(method, url, headers=headers)
+            response = await self._client.request(method, url, headers=headers, json=json_body)
         except httpx.TransportError as exc:
             raise BackpackRequestError(
                 "Backpack request could not reach the provider.",
@@ -248,9 +383,11 @@ class BackpackClient:
             ) from exc
 
         if response.status_code >= 400:
+            upstream_message, upstream_code = _safe_error(response)
             raise BackpackRequestError(
-                "Backpack request was rejected by the provider.",
+                upstream_message or "Backpack request was rejected by the provider.",
                 code="backpack_upstream_error",
+                upstream_code=upstream_code,
                 suggested_http_status=response.status_code,
                 upstream_status=response.status_code,
                 retryable=response.status_code >= 500,
@@ -264,3 +401,21 @@ def _safe_json(response: httpx.Response) -> Any:
         return response.json()
     except ValueError:
         return response.text
+
+
+def _safe_error(response: httpx.Response) -> tuple[str | None, str | None]:
+    try:
+        payload = response.json()
+    except ValueError:
+        text = response.text.strip()
+        return (text or None), None
+
+    if isinstance(payload, dict):
+        message = payload.get("message")
+        code = payload.get("code")
+        return (
+            str(message) if message not in (None, "") else None,
+            str(code) if code not in (None, "") else None,
+        )
+
+    return None, None

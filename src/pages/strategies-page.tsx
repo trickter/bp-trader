@@ -23,7 +23,9 @@ import {
   STRATEGY_TEMPLATE_PRESETS,
 } from "../lib/strategy-builder";
 import type {
+  ExecutionRuntimeStatus,
   ExchangeAccount,
+  LiveStrategyExecution,
   RiskControls,
   StrategySummary,
   StrategyUpsertRequest,
@@ -344,6 +346,15 @@ function parseBoolean(value: string | number | boolean | undefined, fallback: bo
   return fallback;
 }
 
+function parseNumber(value: string | number | boolean | undefined, fallback: number) {
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+  return fallback;
+}
+
 function parseJsonGroups(value: string | number | boolean | undefined, fallback: ConditionGroup[]) {
   if (typeof value !== "string") {
     return fallback;
@@ -377,6 +388,7 @@ function compileTemplateParameters(
   entryConditions: ConditionGroup[],
   exitConditions: ConditionGroup[],
   marketFilters: ConditionGroup[],
+  liveConfig: { liveEnabled: boolean; executionWeight: number; pollIntervalSeconds: number },
 ): StrategyUpsertRequest["parameters"] {
   return {
     templatePresetId: selectedTemplateId ?? "",
@@ -393,6 +405,12 @@ function compileTemplateParameters(
     entryConditionsJson: JSON.stringify(entryConditions),
     exitConditionsJson: JSON.stringify(exitConditions),
     marketFiltersJson: JSON.stringify(marketFilters),
+    liveEnabled: liveConfig.liveEnabled,
+    live_enabled: liveConfig.liveEnabled,
+    executionWeight: liveConfig.executionWeight,
+    execution_weight: liveConfig.executionWeight,
+    pollIntervalSeconds: liveConfig.pollIntervalSeconds,
+    poll_interval_seconds: liveConfig.pollIntervalSeconds,
   };
 }
 
@@ -400,6 +418,7 @@ function compileScriptParameters(
   form: StrategyFormState,
   scriptBody: string,
   scriptParameters: ScriptWorkbenchParameter[],
+  liveConfig: { liveEnabled: boolean; executionWeight: number; pollIntervalSeconds: number },
 ): StrategyUpsertRequest["parameters"] {
   return {
     tagsText: form.tagsText,
@@ -412,6 +431,12 @@ function compileScriptParameters(
     multiSymbolEnabled: form.multiSymbolEnabled,
     enabled: form.enabled,
     scriptBody,
+    liveEnabled: liveConfig.liveEnabled,
+    live_enabled: liveConfig.liveEnabled,
+    executionWeight: liveConfig.executionWeight,
+    execution_weight: liveConfig.executionWeight,
+    pollIntervalSeconds: liveConfig.pollIntervalSeconds,
+    poll_interval_seconds: liveConfig.pollIntervalSeconds,
     ...Object.fromEntries(scriptParameters.map((parameter) => [parameter.key, parameter.value])),
   };
 }
@@ -467,6 +492,8 @@ export function StrategiesPage() {
   const [symbols, setSymbols] = useState<string[]>(DEFAULT_SYMBOLS);
   const [accounts, setAccounts] = useState<ExchangeAccount[]>([]);
   const [riskControls, setRiskControls] = useState<RiskControls | null>(null);
+  const [liveStrategies, setLiveStrategies] = useState<LiveStrategyExecution[]>([]);
+  const [executionRuntime, setExecutionRuntime] = useState<ExecutionRuntimeStatus | null>(null);
   const [selectedStrategyId, setSelectedStrategyId] = useState<string | null>(null);
   const [mode, setMode] = useState<BuilderMode>("template");
   const [form, setForm] = useState<StrategyFormState>(defaultForm(DEFAULT_SYMBOLS[0]));
@@ -493,6 +520,10 @@ export function StrategiesPage() {
   );
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [liveEnabled, setLiveEnabled] = useState(false);
+  const [executionWeight, setExecutionWeight] = useState(1);
+  const [pollIntervalSeconds, setPollIntervalSeconds] = useState(60);
+  const [liveActionPending, setLiveActionPending] = useState(false);
   const [templateSection, setTemplateSection] = useState<TemplateSection>("overview");
   const [scriptSection, setScriptSection] = useState<ScriptSection>("overview");
 
@@ -501,11 +532,13 @@ export function StrategiesPage() {
 
     async function load() {
       try {
-        const [strategyList, marketSymbols, exchangeAccounts, controls] = await Promise.all([
+        const [strategyList, marketSymbols, exchangeAccounts, controls, liveItems, runtimeState] = await Promise.all([
           api.strategies(),
           api.marketSymbols().catch(() => DEFAULT_SYMBOLS),
           api.exchangeAccounts().catch(() => []),
           api.riskControls().catch(() => null),
+          api.liveStrategies().catch(() => []),
+          api.executionRuntime().catch(() => null),
         ]);
 
         if (!active) {
@@ -517,6 +550,8 @@ export function StrategiesPage() {
         setSymbols(nextSymbols);
         setAccounts(exchangeAccounts);
         setRiskControls(controls);
+        setLiveStrategies(liveItems);
+        setExecutionRuntime(runtimeState);
         setScriptParameters(defaultScriptParameters(nextSymbols));
         setLoadState("ready");
 
@@ -565,6 +600,9 @@ export function StrategiesPage() {
     setMarketFilters(presetGroups.filters);
     setScriptBody(DEFAULT_SCRIPT);
     setScriptParameters(defaultScriptParameters(nextSymbols));
+    setLiveEnabled(false);
+    setExecutionWeight(1);
+    setPollIntervalSeconds(60);
     setSaveMessage(null);
   }
 
@@ -591,6 +629,9 @@ export function StrategiesPage() {
       multiSymbolEnabled: parseBoolean(parameters.multiSymbolEnabled, false),
       enabled: parseBoolean(parameters.enabled, true),
     });
+    setLiveEnabled(parseBoolean(parameters.liveEnabled ?? parameters.live_enabled, false));
+    setExecutionWeight(parseNumber(parameters.executionWeight ?? parameters.execution_weight, 1));
+    setPollIntervalSeconds(parseNumber(parameters.pollIntervalSeconds ?? parameters.poll_interval_seconds, 60));
 
     if (strategy.kind === "template") {
       const presetId = parseString(parameters.templatePresetId, STRATEGY_TEMPLATE_PRESETS[0].id);
@@ -666,6 +707,7 @@ export function StrategiesPage() {
               entryConditions,
               exitConditions,
               marketFilters,
+              { liveEnabled, executionWeight, pollIntervalSeconds },
             ),
           }
         : {
@@ -677,7 +719,11 @@ export function StrategiesPage() {
             runtime,
             status,
             priceSource,
-            parameters: compileScriptParameters(form, scriptBody, scriptParameters),
+            parameters: compileScriptParameters(form, scriptBody, scriptParameters, {
+              liveEnabled,
+              executionWeight,
+              pollIntervalSeconds,
+            }),
           };
 
     try {
@@ -705,6 +751,56 @@ export function StrategiesPage() {
     () => strategies.find((item) => item.id === selectedStrategyId) ?? null,
     [strategies, selectedStrategyId],
   );
+  const selectedLiveState = useMemo(
+    () => liveStrategies.find((item) => item.strategyId === selectedStrategyId) ?? null,
+    [liveStrategies, selectedStrategyId],
+  );
+
+  async function refreshExecutionSurfaces() {
+    const [liveItems, runtimeState] = await Promise.all([
+      api.liveStrategies().catch(() => []),
+      api.executionRuntime().catch(() => null),
+    ]);
+    setLiveStrategies(liveItems);
+    setExecutionRuntime(runtimeState);
+  }
+
+  async function enableLiveForSelectedStrategy() {
+    if (!selectedStrategyId) {
+      setSaveMessage("Save the strategy before enabling live trading.");
+      return;
+    }
+    if (!liveEnabled) {
+      setSaveMessage("Whitelist the strategy for live trading before enabling it.");
+      return;
+    }
+    setLiveActionPending(true);
+    try {
+      await api.enableLiveStrategy(selectedStrategyId, { confirmed: true });
+      await refreshExecutionSurfaces();
+      setSaveMessage("Strategy confirmed for live trading.");
+    } catch (error) {
+      setSaveMessage(error instanceof Error ? error.message : "Live enable failed");
+    } finally {
+      setLiveActionPending(false);
+    }
+  }
+
+  async function disableLiveForSelectedStrategy() {
+    if (!selectedStrategyId) {
+      return;
+    }
+    setLiveActionPending(true);
+    try {
+      await api.disableLiveStrategy(selectedStrategyId);
+      await refreshExecutionSurfaces();
+      setSaveMessage("Strategy removed from live execution.");
+    } catch (error) {
+      setSaveMessage(error instanceof Error ? error.message : "Live disable failed");
+    } finally {
+      setLiveActionPending(false);
+    }
+  }
 
   const publishChecklist = buildPublishChecklist({
     hasRiskBinding: Boolean(riskControls),
@@ -1226,6 +1322,95 @@ export function StrategiesPage() {
             </div>
           </div>
 
+          <div className="border-t border-gray-100 px-4 py-4">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-gray-400">Live execution</p>
+            <div className="mt-2.5 space-y-2">
+              <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-3">
+                <label className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-semibold text-gray-900">Whitelist for live</span>
+                  <input
+                    type="checkbox"
+                    checked={liveEnabled}
+                    onChange={(event) => setLiveEnabled(event.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                  />
+                </label>
+                <div className="mt-3 grid gap-2">
+                  <label className="text-[11px] text-gray-500">
+                    Weight
+                    <input
+                      type="number"
+                      min={0.1}
+                      step={0.1}
+                      value={executionWeight}
+                      onChange={(event) => setExecutionWeight(Number(event.target.value) || 0.1)}
+                      className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-900 outline-none focus:border-gray-900"
+                    />
+                  </label>
+                  <label className="text-[11px] text-gray-500">
+                    Poll interval (s)
+                    <input
+                      type="number"
+                      min={5}
+                      step={5}
+                      value={pollIntervalSeconds}
+                      onChange={(event) => setPollIntervalSeconds(Number(event.target.value) || 5)}
+                      className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-900 outline-none focus:border-gray-900"
+                    />
+                  </label>
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void enableLiveForSelectedStrategy()}
+                    disabled={!selectedStrategyId || liveActionPending}
+                    className="flex-1 rounded-lg bg-gray-900 px-3 py-2 text-[11px] font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300"
+                  >
+                    {liveActionPending ? "Working..." : "Enable live"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void disableLiveForSelectedStrategy()}
+                    disabled={!selectedStrategyId || liveActionPending}
+                    className="rounded-lg border border-gray-200 px-3 py-2 text-[11px] font-semibold text-gray-700 transition hover:border-gray-900 hover:text-gray-900 disabled:cursor-not-allowed disabled:text-gray-300"
+                  >
+                    Disable
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-400">Runtime</p>
+                  <StatusPill tone={selectedLiveState?.runtimeStatus === "live_active" ? "positive" : "neutral"}>
+                    {selectedLiveState?.runtimeStatus || "disabled"}
+                  </StatusPill>
+                </div>
+                <p className="mt-1 text-xs font-semibold text-gray-900">
+                  {executionRuntime?.running ? "Execution runtime running" : "Execution runtime stopped"}
+                </p>
+                <p className="mt-0.5 text-[10px] text-gray-500">
+                  {selectedLiveState?.confirmedAt ? `Confirmed ${selectedLiveState.confirmedAt}` : "Requires explicit confirmation before first live run"}
+                </p>
+              </div>
+
+              {selectedLiveState?.readinessChecks?.length ? (
+                <div className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2.5 text-[11px] text-amber-700">
+                  <p className="font-semibold">Readiness checks</p>
+                  <ul className="mt-1 space-y-1">
+                    {selectedLiveState.readinessChecks.map((item) => (
+                      <li key={item}>• {item}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2.5 text-[11px] text-emerald-700">
+                  Ready for live confirmation.
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Publish readiness */}
           <div className="border-t border-gray-100 px-4 py-4">
             <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-gray-400">Publish readiness</p>
@@ -1260,8 +1445,16 @@ export function StrategiesPage() {
               className="min-h-[160px] w-full rounded-xl border border-gray-100 bg-gray-50 p-3 font-mono text-[10px] text-gray-700 outline-none"
               value={JSON.stringify(
                 mode === "template"
-                  ? compileTemplateParameters(form, selectedTemplateId, templateParameters, entryConditions, exitConditions, marketFilters)
-                  : compileScriptParameters(form, scriptBody, scriptParameters),
+                  ? compileTemplateParameters(form, selectedTemplateId, templateParameters, entryConditions, exitConditions, marketFilters, {
+                      liveEnabled,
+                      executionWeight,
+                      pollIntervalSeconds,
+                    })
+                  : compileScriptParameters(form, scriptBody, scriptParameters, {
+                      liveEnabled,
+                      executionWeight,
+                      pollIntervalSeconds,
+                    }),
                 null,
                 2,
               )}

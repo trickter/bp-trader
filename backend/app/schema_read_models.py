@@ -67,6 +67,33 @@ class StrategySummary(APIModel):
     parameters: dict[str, str | float | int | bool] = Field(default_factory=dict)
 
 
+class ExecutionBudgetAllocation(APIModel):
+    strategy_id: str
+    strategy_name: str
+    weight: float
+    budget_notional: float
+
+
+class LiveStrategyExecution(APIModel):
+    strategy_id: str
+    strategy_name: str
+    strategy_kind: str = "template"
+    market: str
+    account_id: str
+    price_source: PriceSource
+    runtime_status: str
+    live_enabled: bool
+    is_whitelisted: bool
+    execution_weight: float
+    poll_interval_seconds: int
+    confirmed_at: str | None = None
+    last_cycle_at: str | None = None
+    last_signal: str | None = None
+    last_error: str | None = None
+    last_order_id: str | None = None
+    readiness_checks: list[str] = Field(default_factory=list)
+
+
 class Candle(APIModel):
     timestamp: str
     open: float
@@ -145,3 +172,48 @@ class AlertEvent(APIModel):
     title: str
     detail: str
     occurred_at: str
+
+
+class ExecutionOrder(APIModel):
+    id: str
+    strategy_id: str
+    strategy_name: str = ""
+    client_order_id: str
+    exchange_order_id: str = ""
+    symbol: str
+    side: str
+    action: str
+    status: str
+    quantity: float
+    price: float
+    reduce_only: bool = False
+    submitted_at: str
+    updated_at: str
+    failure_reason: str = ""
+
+
+class ExecutionEvent(APIModel):
+    id: str
+    strategy_id: str
+    strategy_name: str = ""
+    level: str
+    event_type: str = ""
+    message: str
+    symbol: str = ""
+    signal: str = ""
+    created_at: str
+    metadata: dict[str, str | float | int | bool] = Field(default_factory=dict)
+
+
+class ExecutionRuntimeStatus(APIModel):
+    mode: str
+    running: bool
+    max_concurrent_strategies: int
+    active_strategy_count: int
+    enabled_strategy_count: int
+    budgets: list[ExecutionBudgetAllocation] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    started_at: str | None = None
+    stopped_at: str | None = None
+    last_cycle_at: str | None = None
+    last_error: str | None = None

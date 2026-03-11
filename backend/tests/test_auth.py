@@ -1,6 +1,7 @@
 """Tests for auth.py - Authentication module."""
 from __future__ import annotations
 
+import asyncio
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
@@ -25,9 +26,7 @@ class TestRequireAdminApiToken:
 
         # Valid token should not raise
         with patch.object(config_module.settings, "admin_api_token", "test-admin-token"):
-            # Should not raise
-            import asyncio
-            asyncio.get_event_loop().run_until_complete(require_admin_api_token("test-admin-token"))
+            asyncio.run(require_admin_api_token("test-admin-token"))
 
     def test_missing_token_raises_401(self, monkeypatch) -> None:
         """Test that missing token raises 401."""
@@ -39,8 +38,7 @@ class TestRequireAdminApiToken:
         importlib.reload(config_module)
 
         with pytest.raises(HTTPException) as exc_info:
-            import asyncio
-            asyncio.get_event_loop().run_until_complete(require_admin_api_token(None))
+            asyncio.run(require_admin_api_token(None))
 
         assert exc_info.value.status_code == 401
         assert "Missing X-Admin-Token" in exc_info.value.detail
@@ -55,8 +53,7 @@ class TestRequireAdminApiToken:
         importlib.reload(config_module)
 
         with pytest.raises(HTTPException) as exc_info:
-            import asyncio
-            asyncio.get_event_loop().run_until_complete(require_admin_api_token("invalid-token"))
+            asyncio.run(require_admin_api_token("invalid-token"))
 
         assert exc_info.value.status_code == 403
         assert "Invalid admin API token" in exc_info.value.detail

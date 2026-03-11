@@ -7,7 +7,13 @@ import type {
   BacktestRequest,
   BacktestResult,
   BacktestRunAccepted,
+  ExecutionEvent,
+  ExecutionOrder,
+  ExecutionRuntimeCommand,
+  ExecutionRuntimeStatus,
   ExchangeAccount,
+  LiveStrategyEnableRequest,
+  LiveStrategyExecution,
   MarketMetric,
   Position,
   ProfileSummary,
@@ -104,6 +110,22 @@ export const api = {
   createStrategy: (request: StrategyUpsertRequest) => postJson<StrategySummary>("/api/strategies", request),
   updateStrategy: (strategyId: string, request: StrategyUpsertRequest) =>
     putJson<StrategySummary>(`/api/strategies/${strategyId}`, request),
+  liveStrategies: () => getJson<LiveStrategyExecution[]>("/api/execution/live-strategies"),
+  enableLiveStrategy: (strategyId: string, request: LiveStrategyEnableRequest) =>
+    postJson<LiveStrategyExecution>(`/api/execution/live-strategies/${strategyId}/enable`, request),
+  disableLiveStrategy: (strategyId: string) =>
+    postJson<LiveStrategyExecution>(`/api/execution/live-strategies/${strategyId}/disable`, {}),
+  flattenLiveStrategy: (strategyId: string, request: ExecutionRuntimeCommand) =>
+    postJson<LiveStrategyExecution>(`/api/execution/live-strategies/${strategyId}/flatten`, request),
+  disableAndFlattenLiveStrategy: (strategyId: string, request: ExecutionRuntimeCommand) =>
+    postJson<LiveStrategyExecution>(`/api/execution/live-strategies/${strategyId}/disable-and-flatten`, request),
+  executionRuntime: () => getJson<ExecutionRuntimeStatus>("/api/execution/runtime"),
+  startExecutionRuntime: (request: ExecutionRuntimeCommand) =>
+    postJson<ExecutionRuntimeStatus>("/api/execution/runtime/start", request),
+  stopExecutionRuntime: (request: ExecutionRuntimeCommand) =>
+    postJson<ExecutionRuntimeStatus>("/api/execution/runtime/stop", request),
+  executionOrders: () => getJson<ExecutionOrder[]>("/api/execution/orders"),
+  executionEvents: () => getJson<ExecutionEvent[]>("/api/execution/events"),
   createTemplateBacktest: (templateId: string, request: BacktestRequest) =>
     postJson<BacktestRunAccepted>(`/api/strategies/templates/${templateId}/backtests`, request),
   createScriptBacktest: (strategyId: string, request: BacktestRequest) =>
